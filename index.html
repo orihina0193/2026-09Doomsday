@@ -78,8 +78,20 @@
           </button>
         </div>
 
-        <!-- コントロール群: 件数 & 表/カード切替 -->
-        <div class="flex items-center justify-between sm:justify-end gap-2 text-xs">
+      <!-- コントロール群: 件数 & 表/カード切替 & 座標列非表示切替 -->
+      <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
+        <!-- 座標列の表示/非表示（名前タップでコピー切替） -->
+        <button
+          id="toggleCoordColumnBtn"
+          onclick="toggleHideCoordColumn()"
+          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 transition-colors select-none cursor-pointer"
+          title="表示切替"
+        >
+          <span id="toggleCoordIcon">👁️</span>
+          <span id="toggleCoordText">表示を「名前タップでコピー」のみに切替</span>
+        </button>
+
+        <div class="flex items-center gap-2 ml-auto">
           <span id="recordCount" class="font-medium text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg">
             0 件
           </span>
@@ -143,7 +155,7 @@
 
     <!-- フッター説明 -->
     <footer class="mt-4 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-1.5 px-1">
-      <p>💡 📍ピンが付いた「座標」のボタンをタップすると、その座標だけコピーされます。</p>
+      <p>💡 📍ピンが付いた「名前」のボタンをタップすると、【名前＋座標】がクリップボードにコピーされます。</p>
       <p class="hidden sm:inline">列の見出しタップで「昇順 / 降順」に並べ替え</p>
     </footer>
 
@@ -154,7 +166,7 @@
     <div class="w-full sm:w-auto flex items-center gap-2 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl text-xs sm:text-sm font-medium border border-slate-700 pointer-events-auto">
       <span class="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 text-xs font-bold">✓</span>
       <div class="truncate flex-1">
-        <span class="text-emerald-400 font-semibold">座標をコピー:</span>
+        <span class="text-emerald-400 font-semibold">名前＋座標をコピー:</span>
         <span id="copyToastText" class="font-mono bg-slate-800 px-2 py-0.5 rounded border border-slate-700 ml-1"></span>
       </div>
     </div>
@@ -171,9 +183,10 @@
     let rawRows = [];
     let currentSort = { colIndex: null, direction: null };
     let currentViewMode = 'table'; // スマホも含め、全端末で「表（テーブル）」表示がデフォルト
+    let hideCoordColumn = false; // 座標列を隠して「名前タップでコピー」のみにするモード
     let toastTimeout = null;
 
-    // 通常座標かどうかの判定（一般の価格、個数、日付、IDなどは除外）
+    // 通常座標・ゲーム座標かどうかの判定（一般の価格、個数、日付、IDなどは除外）
     function isCoordinateCell(val, headerName = '') {
       if (!val) return false;
       const t = String(val).trim();
@@ -190,6 +203,9 @@
       const h = (headerName || '').toLowerCase();
       const isCoordHeader = h.includes('座標') || h.includes('coord') || h.includes('lat') || h.includes('lng') || h.includes('位置') || h.includes('地点');
 
+      // ゲーム座標パターン: S:511 X:238 Y:540, K:12 X:100 Y:200, X:238 Y:540
+      if (/^([SsKk]:?\s*\d+[\s,]+)?[Xx]:?\s*[-+]?\d+(\.\d+)?[\s,]+[Yy]:?\s*[-+]?\d+/i.test(t)) return true;
+
       // 緯度経度パターン: 35.6586, 139.7454
       if (/^[-+]?\d{1,3}\.\d{3,}\s*,\s*[-+]?\d{1,3}\.\d{3,}$/.test(t)) return true;
 
@@ -205,6 +221,106 @@
       if (isCoordHeader && /\d+.*[,:\s].*\d+/.test(t)) return true;
 
       return false;
+    }
+
+    // セル内の座標および名前を抽出
+    function extractCoordinate(text) {
+      if (!text) return null;
+      const trimmed = String(text).trim();
+      if (!trimmed) return null;
+
+      // 日付や単純IDは除外
+      if (/^d{4}[-/.]d{1,2}[-/.]d{1,2}/.test(trimmed)) return null;
+      if (/^[A-Za-z0-9]+-[A-Za-z0-9-]+$/.test(trimmed) && !trimmed.toLowerCase().includes('x')) return null;
+
+      if (isCoordinateCell(trimmed)) {
+        return { name: '', coord: trimmed };
+      }
+
+      // ゲーム座標パターン: S:511 X:240 Y:538 または X:240 Y:538
+      const gameMatch = trimmed.match(/((?:[SsKk]:?s*d+[s,]+)?[Xx]:?s*[-+]?d+(?:.d+)?[s,]+[Yy]:?s*[-+]?d+(?:.d+)?)/i);
+      if (gameMatch) {
+        const coord = gameMatch[1].trim();
+        const name = trimmed.replace(gameMatch[0], '').trim();
+        if (name) return { name, coord };
+      }
+
+      // 緯度経度パターン: 35.6586, 139.7454
+      const latLngMatch = trimmed.match(/([-+]?d{1,3}.d{3,}s*,s*[-+]?d{1,3}.d{3,})/);
+      if (latLngMatch) {
+        const coord = latLngMatch[1].trim();
+        const name = trimmed.replace(latLngMatch[0], '').trim();
+        if (name) return { name, coord };
+      }
+
+      return null;
+    }
+
+    // 行の中から座標文字列を抽出
+    function findRowCoordinate(row, headers) {
+      for (let cIdx = 0; cIdx < headers.length; cIdx++) {
+        const val = row[cIdx] || '';
+        if (isCoordinateCell(val, headers[cIdx])) {
+          return { coordText: val.trim(), coordColIndex: cIdx };
+        }
+      }
+      return null;
+    }
+
+    // 行から表示用名称とコピー用文字列（名前＋座標）を算出
+    function getRowNameAndCoordInfo(row, headers) {
+      // 1. 同一セル内に「名前＋座標」が同居しているかチェック
+      for (let cIdx = 0; cIdx < headers.length; cIdx++) {
+        const cellVal = (row[cIdx] || '').trim();
+        const extracted = extractCoordinate(cellVal);
+        if (extracted && extracted.name && extracted.coord) {
+          return {
+            displayName: extracted.name,
+            coordText: extracted.coord,
+            fullTextToCopy: extracted.name + ' ' + extracted.coord,
+            coordColIndex: cIdx,
+            isSingleCellMixed: true,
+          };
+        }
+      }
+
+      // 2. 別々の列（名前列と座標列）に分かれている場合
+      const coordInfo = findRowCoordinate(row, headers);
+      if (coordInfo && coordInfo.coordText) {
+        const rawName = (row[0] || '').trim();
+        return {
+          displayName: rawName || '名称未設定',
+          coordText: coordInfo.coordText,
+          fullTextToCopy: rawName ? rawName + ' ' + coordInfo.coordText : coordInfo.coordText,
+          coordColIndex: coordInfo.coordColIndex,
+          isSingleCellMixed: false,
+        };
+      }
+
+      return null;
+    }
+
+    // 座標列のインデックス一覧を取得
+    function getCoordColumnIndices() {
+      const indices = [];
+      rawHeaders.forEach((h, idx) => {
+        const isCoordHdr = h.toLowerCase().includes('座標') || h.toLowerCase().includes('coord');
+        const hasSampleCoord = rawRows.slice(0, 10).some(r => isCoordinateCell(r[idx] || '', h));
+        if (isCoordHdr || hasSampleCoord) indices.push(idx);
+      });
+      return indices;
+    }
+
+    // 表示する列インデックス一覧
+    function getVisibleColumnIndices() {
+      const coordIndices = getCoordColumnIndices();
+      const visible = [];
+      rawHeaders.forEach((_, idx) => {
+        if (!hideCoordColumn || !coordIndices.includes(idx)) {
+          visible.push(idx);
+        }
+      });
+      return visible;
     }
 
     // CSVパース
@@ -294,14 +410,14 @@
     }
 
     // 座標タップコピー実行
-    async function copyCoordinate(text, e) {
+    async function copyCoordinate(text, label, e) {
       if (e) e.stopPropagation();
       const clean = (text || '').trim();
       if (!clean) return;
 
       try {
         await navigator.clipboard.writeText(clean);
-        showToast(clean);
+        showToast(clean, label);
       } catch (err) {
         // フォールバック（古いブラウザやパーミッション対策）
         const textArea = document.createElement('textarea');
@@ -310,23 +426,43 @@
         textArea.select();
         document.execCommand('copy');
         document.body.removeChild(textArea);
-        showToast(clean);
+        showToast(clean, label);
       }
     }
 
     // コピートースト表示
-    function showToast(text) {
+    function showToast(text, label) {
       const toast = document.getElementById('copyToast');
       const toastText = document.getElementById('copyToastText');
       if (!toast || !toastText) return;
 
-      toastText.textContent = text;
+      toastText.textContent = text + (label ? ' (' + label + ')' : '');
       toast.classList.remove('hidden');
 
       if (toastTimeout) clearTimeout(toastTimeout);
       toastTimeout = setTimeout(() => {
         toast.classList.add('hidden');
       }, 2400);
+    }
+
+    // 座標列の表示/非表示（名前タップでコピーのみ切替）
+    function toggleHideCoordColumn() {
+      hideCoordColumn = !hideCoordColumn;
+      const btn = document.getElementById('toggleCoordColumnBtn');
+      const icon = document.getElementById('toggleCoordIcon');
+      const text = document.getElementById('toggleCoordText');
+      if (btn && icon && text) {
+        if (hideCoordColumn) {
+          btn.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold shadow-2xs transition-colors select-none cursor-pointer';
+          icon.textContent = '🙈';
+          text.textContent = '座標列: 非表示中（名前タップでコピー）';
+        } else {
+          btn.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 transition-colors select-none cursor-pointer';
+          icon.textContent = '👁️';
+          text.textContent = '表示を「名前タップでコピー」のみに切替';
+        }
+      }
+      render();
     }
 
     // 表示切り替え（表 / カード）
@@ -420,18 +556,20 @@
     function renderTable(filteredRows) {
       const thead = document.getElementById('tableHead');
       const tbody = document.getElementById('tableBody');
+      const visibleCols = getVisibleColumnIndices();
 
       let headHtml = '<tr>';
       headHtml += '<th class="w-10 sm:w-12 px-2.5 sm:px-3 py-3 text-center text-slate-400 font-mono text-xs border-r border-slate-200">#</th>';
-      rawHeaders.forEach((header, index) => {
-        const isSorted = currentSort.colIndex === index;
+      visibleCols.forEach((origIndex) => {
+        const header = rawHeaders[origIndex];
+        const isSorted = currentSort.colIndex === origIndex;
         const arrow = isSorted
           ? (currentSort.direction === 'asc' ? '▲' : '▼')
           : '<span class="text-slate-300">⇅</span>';
 
         headHtml += `
           <th
-            onclick="sortTable(${index})"
+            onclick="sortTable(${origIndex})"
             class="px-3 sm:px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors whitespace-nowrap ${isSorted ? 'bg-emerald-50/80 text-emerald-900 border-b-2 border-emerald-600' : ''}"
             title="クリックで並べ替え"
           >
@@ -448,7 +586,7 @@
       if (filteredRows.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="${(rawHeaders.length || 1) + 1}" class="py-10 text-center text-slate-400">
+            <td colspan="${visibleCols.length + 1}" class="py-10 text-center text-slate-400">
               一致するデータが見つかりませんでした。
             </td>
           </tr>
@@ -459,32 +597,61 @@
       let bodyHtml = '';
       filteredRows.forEach((row, rIdx) => {
         const bgClass = rIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60';
+        const rowCoordInfo = getRowNameAndCoordInfo(row, rawHeaders);
+        const primaryName = rowCoordInfo ? rowCoordInfo.displayName : (row[0] || '無題');
+        const copyTarget = rowCoordInfo ? rowCoordInfo.fullTextToCopy : primaryName;
+
         bodyHtml += `<tr class="${bgClass} hover:bg-emerald-50/30 transition-colors">`;
         bodyHtml += `<td class="px-2.5 sm:px-3 py-2.5 sm:py-3 text-center text-slate-400 font-mono text-xs border-r border-slate-100 whitespace-nowrap">${rIdx + 1}</td>`;
 
-        rawHeaders.forEach((header, cIdx) => {
-          const val = row[cIdx] !== undefined ? row[cIdx] : '';
+        visibleCols.forEach((origIndex) => {
+          const val = row[origIndex] !== undefined ? row[origIndex] : '';
+          const header = rawHeaders[origIndex];
           const isCoord = isCoordinateCell(val, header);
+          const isNameCol = origIndex === 0;
 
-          bodyHtml += '<td class="px-3 sm:px-4 py-2.5 sm:py-3 whitespace-nowrap text-slate-800">';
+          bodyHtml += '<td class="px-3 sm:px-4 py-2 sm:py-2.5 whitespace-nowrap text-slate-800">';
 
           if (isCoord) {
-            // 座標のみボタン化＆タップでコピー可能に
+            // 座標ボタン化＆タップで「名前＋座標」コピー可能に
             bodyHtml += `
               <button
                 type="button"
-                onclick="copyCoordinate('${escapeJs(val)}', event)"
+                onclick="copyCoordinate('${escapeJs(copyTarget)}', '${escapeJs(primaryName)}', event)"
                 class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-mono text-xs bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100 active:scale-95 transition-all cursor-pointer min-h-[34px]"
-                title="タップして座標をコピー"
+                title="タップして【${escapeHtml(copyTarget)}】をコピー"
               >
                 <span class="text-emerald-600">📍</span>
                 <span class="font-semibold">${escapeHtml(val)}</span>
                 <span class="text-[10px] text-emerald-700 bg-white/80 px-1 py-0.5 rounded border border-emerald-200">コピー</span>
               </button>
             `;
+          } else if (isNameCol && rowCoordInfo) {
+            // 名前ボタン化: 表示は名前のみ！ポチッと押して【名前＋座標】をコピー！
+            const displayName = rowCoordInfo.displayName;
+            bodyHtml += `
+              <button
+                type="button"
+                onclick="copyCoordinate('${escapeJs(copyTarget)}', '${escapeJs(displayName)}', event)"
+                class="group inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-left bg-emerald-50/50 hover:bg-emerald-100/70 border-emerald-200/80 active:scale-[0.98] transition-all cursor-pointer max-w-full"
+                title="ポチッと押して【${escapeHtml(copyTarget)}】をコピー"
+              >
+                <span class="text-emerald-600 shrink-0">📍</span>
+                <div class="min-w-0">
+                  <div class="font-bold text-xs sm:text-sm truncate">${escapeHtml(displayName)}</div>
+                </div>
+                <span class="ml-auto inline-flex items-center text-[10px] bg-white text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded-md shrink-0 font-medium">
+                  コピー
+                </span>
+              </button>
+            `;
           } else {
-            // 通常の数値・文字は誤タップコピーされないテキスト表示
-            bodyHtml += `<span class="select-text">${escapeHtml(val)}</span>`;
+            // 同一セルで名前＋座標が入っている場合は名前のみ表示
+            let cellText = val;
+            if (rowCoordInfo && rowCoordInfo.isSingleCellMixed && rowCoordInfo.coordColIndex === origIndex) {
+              cellText = rowCoordInfo.displayName;
+            }
+            bodyHtml += `<span class="select-text">${escapeHtml(cellText)}</span>`;
           }
 
           bodyHtml += '</td>';
@@ -499,6 +666,7 @@
     // スマホ用カード描画
     function renderCards(filteredRows) {
       const container = document.getElementById('cardsViewContainer');
+      const coordIndices = getCoordColumnIndices();
 
       if (filteredRows.length === 0) {
         container.innerHTML = `
@@ -511,35 +679,45 @@
 
       let cardsHtml = '';
       filteredRows.forEach((row, rIdx) => {
-        // この行内の座標列を抽出
-        const coordIndices = [];
-        rawHeaders.forEach((h, cIdx) => {
-          if (isCoordinateCell(row[cIdx] || '', h)) coordIndices.push(cIdx);
-        });
+        const rowCoordInfo = getRowNameAndCoordInfo(row, rawHeaders);
+        const primaryName = rowCoordInfo ? rowCoordInfo.displayName : (row[0] || '無題');
+        const copyTarget = rowCoordInfo ? rowCoordInfo.fullTextToCopy : primaryName;
 
         cardsHtml += `
           <div class="bg-white rounded-xl border border-slate-200 p-3.5 shadow-2xs space-y-2.5">
-            <!-- タイトル行 -->
+            <!-- タイトル行 (表示は名前のみ！タップで【名前＋座標】コピー可能) -->
             <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
-              <div class="flex items-center gap-2 min-w-0">
+              <div class="flex items-center gap-2 min-w-0 flex-1">
                 <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-500 font-mono text-[10px] flex items-center justify-center shrink-0">
                   ${rIdx + 1}
                 </span>
-                <span class="font-bold text-slate-900 text-sm truncate">
-                  ${escapeHtml(row[0] || '無題')}
-                </span>
+                ${rowCoordInfo ? `
+                  <button
+                    type="button"
+                    onclick="copyCoordinate('${escapeJs(copyTarget)}', event)"
+                    class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border font-bold text-sm text-left truncate bg-emerald-50/60 hover:bg-emerald-100 text-emerald-950 border-emerald-200 active:scale-[0.98] transition-all cursor-pointer"
+                    title="名前をタップして【${escapeHtml(copyTarget)}】をコピー"
+                  >
+                    <span class="text-emerald-600 shrink-0">📍</span>
+                    <span class="truncate">${escapeHtml(primaryName)}</span>
+                    <span class="text-[10px] ml-1 opacity-75 font-normal shrink-0">ポチッとコピー</span>
+                  </button>
+                ` : `
+                  <span class="font-bold text-slate-900 text-sm truncate">${escapeHtml(primaryName)}</span>
+                `}
               </div>
-              ${row[1] ? `<span class="text-xs text-slate-400 shrink-0">${escapeHtml(row[1])}</span>` : ''}
+              ${row[1] ? `<span class="text-xs text-slate-400 shrink-0 font-medium">${escapeHtml(row[1])}</span>` : ''}
             </div>
 
-            <!-- 座標タップコピーボタン（大きく押しやすいボタン） -->
-            ${coordIndices.length > 0 ? `
+            <!-- 座標タップコピーボタン（別列の座標列を表示している場合のみ） -->
+            ${(!hideCoordColumn && rowCoordInfo && !rowCoordInfo.isSingleCellMixed && coordIndices.length > 0) ? `
               <div class="space-y-1.5">
                 ${coordIndices.map(cIdx => `
                   <button
                     type="button"
-                    onclick="copyCoordinate('${escapeJs(row[cIdx] || '')}', event)"
-                    class="w-full flex items-center justify-between p-2.5 rounded-xl border font-mono text-xs bg-emerald-50 text-emerald-900 border-emerald-300 active:scale-[0.98] transition-all min-h-[44px]"
+                    onclick="copyCoordinate('${escapeJs(copyTarget)}', event)"
+                    class="w-full flex items-center justify-between p-2.5 rounded-xl border font-mono text-xs bg-emerald-50 text-emerald-900 border-emerald-300 active:scale-[0.98] transition-all min-h-[44px] cursor-pointer"
+                    title="タップして【${escapeHtml(copyTarget)}】をコピー"
                   >
                     <div class="flex items-center gap-1.5 min-w-0">
                       <span>📍</span>
@@ -547,7 +725,7 @@
                       <span class="font-bold tracking-tight">${escapeHtml(row[cIdx] || '')}</span>
                     </div>
                     <span class="text-[11px] font-sans font-semibold bg-white text-emerald-800 border border-emerald-200 px-2 py-1 rounded-md shrink-0">
-                      タップでコピー
+                      名前+座標コピー
                     </span>
                   </button>
                 `).join('')}
