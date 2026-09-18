@@ -80,16 +80,41 @@
 
       <!-- コントロール群: 件数 & 表/カード切替 & 座標列非表示切替 -->
       <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
-        <!-- 座標列の表示/非表示（名前タップでコピー切替） -->
-        <button
-          id="toggleCoordColumnBtn"
-          onclick="toggleHideCoordColumn()"
-          class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 transition-colors select-none cursor-pointer"
-          title="表示切替"
-        >
-          <span id="toggleCoordIcon">👁️</span>
-          <span id="toggleCoordText">表示を「名前タップでコピー」のみに切替</span>
-        </button>
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- 座標列の表示/非表示（名前タップでコピー切替） -->
+          <button
+            id="toggleCoordColumnBtn"
+            onclick="toggleHideCoordColumn()"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 transition-colors select-none cursor-pointer"
+            title="表示切替"
+          >
+            <span id="toggleCoordIcon">👁️</span>
+            <span id="toggleCoordText">表示を「名前タップでコピー」のみに切替</span>
+          </button>
+
+          <!-- サーバー番号除外切り替え -->
+          <button
+            id="toggleExcludeServerBtn"
+            onclick="toggleExcludeServer()"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs bg-amber-50 text-amber-900 border-amber-300 font-semibold shadow-2xs select-none cursor-pointer"
+            title="サーバー番号(S:511等)を除外するかどうか切り替え"
+          >
+            <span id="excludeServerText">✓ サーバー番号を除外</span>
+          </button>
+
+          <!-- 名前列選択 -->
+          <div id="nameColContainer" class="hidden inline-flex items-center gap-1.5 text-slate-600">
+            <span class="hidden sm:inline font-medium">名前列:</span>
+            <select
+              id="nameColSelect"
+              onchange="onNameColChange(this.value)"
+              class="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium cursor-pointer text-xs"
+              title="タップしてコピーする名前の列"
+            >
+              <option value="">自動判定中...</option>
+            </select>
+          </div>
+        </div>
 
         <div class="flex items-center gap-2 ml-auto">
           <span id="recordCount" class="font-medium text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg">
@@ -184,7 +209,88 @@
     let currentSort = { colIndex: null, direction: null };
     let currentViewMode = 'table'; // スマホも含め、全端末で「表（テーブル）」表示がデフォルト
     let hideCoordColumn = false; // 座標列を隠して「名前タップでコピー」のみにするモード
+    let selectedNameColIndex = null; // ユーザーが選択した名前列（nullなら自動判定）
+    let excludeServer = true; // デフォルトでS:511等のサーバー番号は除外してコピー
     let toastTimeout = null;
+
+    // 座標文字列からサーバー番号（例: S:511, S511, K:12, 鯖:511, #511）を取り除く
+    function stripServerFromCoord(coord) {
+      if (!coord) return '';
+      return coord
+        .replace(/^([SsKk#]|(?:鯖|サーバー):?)s*d+[s,]+/i, '')
+        .trim();
+    }
+
+    // 最適な「名前列」のインデックスを自動検出（サーバー列やID列、座標列をスキップ）
+    function findNameColumnIndex(headers, rows) {
+      if (!headers || headers.length === 0) return 0;
+
+      // 1. 名前系キーワードを優先検索
+      const nameKeywords = [
+        '名前', 'プレイヤー名', 'プレイヤー', '城主', '君主', 'ユーザー名', 'ユーザー',
+        'キャラ名', 'キャラクター', 'キャラ', '垢名', 'ネーム', 'ターゲット', '標的',
+        'player', 'user', 'username', 'name', 'target', '拠点', '地点名', '地点', '名称'
+      ];
+
+      for (let i = 0; i < headers.length; i++) {
+        const h = (headers[i] || '').toLowerCase().trim();
+        if (nameKeywords.some(kw => h.includes(kw))) {
+          return i;
+        }
+      }
+
+      // 2. サーバー、座標、IDなどの除外キーワード
+      const negativeKeywords = [
+        'サーバー', 'server', 's#', '鯖', '国', '王国', 'realm', 'kingdom', 'world',
+        '座標', 'coord', 'loc', 'x', 'y', '緯度', '経度', 'position',
+        'no', '#', 'id', '連番', '番号', 'index',
+        'タイプ', 'type', '役職', '階級', '同盟', 'ギルド', 'clan', 'alliance',
+        '備考', 'memo', 'メモ', '日時', '日付', 'date', 'time'
+      ];
+
+      for (let i = 0; i < headers.length; i++) {
+        const h = (headers[i] || '').toLowerCase().trim();
+        const isNegative = negativeKeywords.some(kw => h === kw || h.startsWith(kw) || h.endsWith(kw));
+        if (isNegative) continue;
+
+        // サンプルデータを検証（サーバー番号や座標だけが入っている列を除外）
+        if (rows && rows.length > 0) {
+          const sampleVals = rows.slice(0, 15).map(r => (r[i] || '').trim()).filter(Boolean);
+          if (sampleVals.length === 0) continue;
+
+          // サーバー番号っぽい値 (例: 511, S:511, S511)
+          const mostlyServers = sampleVals.every(v => /^[SsKk]?:?s*d+$/.test(v));
+          if (mostlyServers) continue;
+
+          // 座標っぽい値
+          const mostlyCoords = sampleVals.every(v => isCoordinateCell(v, headers[i]));
+          if (mostlyCoords) continue;
+
+          // 単なる1〜4桁の数値（IDや連番）
+          const mostlySmallNumbers = sampleVals.every(v => /^d{1,4}$/.test(v));
+          if (mostlySmallNumbers) continue;
+        }
+
+        return i;
+      }
+
+      // 3. 消去法（サーバーや座標を含まない最初の列）
+      for (let i = 0; i < headers.length; i++) {
+        const h = (headers[i] || '').toLowerCase().trim();
+        if (!h.includes('サーバー') && !h.includes('server') && !h.includes('座標') && !h.includes('coord')) {
+          return i;
+        }
+      }
+
+      return 0;
+    }
+
+    function getEffectiveNameColIndex() {
+      if (selectedNameColIndex !== null && selectedNameColIndex >= 0 && selectedNameColIndex < rawHeaders.length) {
+        return selectedNameColIndex;
+      }
+      return findNameColumnIndex(rawHeaders, rawRows);
+    }
 
     // 通常座標・ゲーム座標かどうかの判定（一般の価格、個数、日付、IDなどは除外）
     function isCoordinateCell(val, headerName = '') {
@@ -269,16 +375,22 @@
 
     // 行から表示用名称とコピー用文字列（名前＋座標）を算出
     function getRowNameAndCoordInfo(row, headers) {
-      // 1. 同一セル内に「名前＋座標」が同居しているかチェック
-      for (let cIdx = 0; cIdx < headers.length; cIdx++) {
+      const effectiveNameCol = getEffectiveNameColIndex();
+
+      // 1. 同一セル内に「名前＋座標」が同居しているかチェック（名前列を優先探索）
+      const checkOrder = [effectiveNameCol, ...headers.map((_, idx) => idx).filter(idx => idx !== effectiveNameCol)];
+      for (const cIdx of checkOrder) {
+        if (cIdx < 0 || cIdx >= headers.length) continue;
         const cellVal = (row[cIdx] || '').trim();
         const extracted = extractCoordinate(cellVal);
         if (extracted && extracted.name && extracted.coord) {
+          const finalCoord = excludeServer ? stripServerFromCoord(extracted.coord) : extracted.coord;
           return {
             displayName: extracted.name,
-            coordText: extracted.coord,
-            fullTextToCopy: extracted.name + ' ' + extracted.coord,
+            coordText: finalCoord,
+            fullTextToCopy: extracted.name + ' ' + finalCoord,
             coordColIndex: cIdx,
+            nameColIndex: cIdx,
             isSingleCellMixed: true,
           };
         }
@@ -287,12 +399,15 @@
       // 2. 別々の列（名前列と座標列）に分かれている場合
       const coordInfo = findRowCoordinate(row, headers);
       if (coordInfo && coordInfo.coordText) {
-        const rawName = (row[0] || '').trim();
+        const rawName = (row[effectiveNameCol] !== undefined ? row[effectiveNameCol] : (row[0] || '')).trim();
+        const finalCoord = excludeServer ? stripServerFromCoord(coordInfo.coordText) : coordInfo.coordText;
+        const displayName = rawName || '名称未設定';
         return {
-          displayName: rawName || '名称未設定',
-          coordText: coordInfo.coordText,
-          fullTextToCopy: rawName ? rawName + ' ' + coordInfo.coordText : coordInfo.coordText,
+          displayName: displayName,
+          coordText: finalCoord,
+          fullTextToCopy: displayName ? displayName + ' ' + finalCoord : finalCoord,
           coordColIndex: coordInfo.coordColIndex,
+          nameColIndex: effectiveNameCol,
           isSingleCellMixed: false,
         };
       }
@@ -390,6 +505,7 @@
         rawHeaders = parsedData[0];
         rawRows = parsedData.slice(1);
 
+        updateNameColSelect();
         hideStatus();
         render();
 
@@ -462,6 +578,51 @@
           text.textContent = '表示を「名前タップでコピー」のみに切替';
         }
       }
+      render();
+    }
+
+    // サーバー番号(S:511等)の除外切り替え
+    function toggleExcludeServer() {
+      excludeServer = !excludeServer;
+      const btn = document.getElementById('toggleExcludeServerBtn');
+      const text = document.getElementById('excludeServerText');
+      if (btn && text) {
+        if (excludeServer) {
+          btn.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs bg-amber-50 text-amber-900 border-amber-300 font-semibold shadow-2xs select-none cursor-pointer';
+          text.textContent = '✓ サーバー番号を除外';
+        } else {
+          btn.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 select-none cursor-pointer';
+          text.textContent = 'サーバー番号を含む';
+        }
+      }
+      render();
+    }
+
+    // 名前列選択ドロップダウンの更新
+    function updateNameColSelect() {
+      const container = document.getElementById('nameColContainer');
+      const select = document.getElementById('nameColSelect');
+      if (!select || !container) return;
+
+      if (!rawHeaders || rawHeaders.length <= 1) {
+        container.classList.add('hidden');
+        return;
+      }
+
+      container.classList.remove('hidden');
+      const autoIdx = findNameColumnIndex(rawHeaders, rawRows);
+      const autoLabel = rawHeaders[autoIdx] || ('列 ' + (autoIdx + 1));
+
+      let optionsHtml = '<option value="">自動判定: ' + escapeHtml(autoLabel) + '</option>';
+      rawHeaders.forEach((h, idx) => {
+        const isSelected = selectedNameColIndex === idx ? ' selected' : '';
+        optionsHtml += '<option value="' + idx + '"' + isSelected + '>' + escapeHtml(h || ('列 ' + (idx + 1))) + '</option>';
+      });
+      select.innerHTML = optionsHtml;
+    }
+
+    function onNameColChange(val) {
+      selectedNameColIndex = val === '' ? null : Number(val);
       render();
     }
 
@@ -557,12 +718,16 @@
       const thead = document.getElementById('tableHead');
       const tbody = document.getElementById('tableBody');
       const visibleCols = getVisibleColumnIndices();
+      const coordIndices = getCoordColumnIndices();
+      const effectiveNameCol = getEffectiveNameColIndex();
 
       let headHtml = '<tr>';
       headHtml += '<th class="w-10 sm:w-12 px-2.5 sm:px-3 py-3 text-center text-slate-400 font-mono text-xs border-r border-slate-200">#</th>';
       visibleCols.forEach((origIndex) => {
         const header = rawHeaders[origIndex];
         const isSorted = currentSort.colIndex === origIndex;
+        const isCoordCol = coordIndices.includes(origIndex);
+        const isNameCol = origIndex === effectiveNameCol;
         const arrow = isSorted
           ? (currentSort.direction === 'asc' ? '▲' : '▼')
           : '<span class="text-slate-300">⇅</span>';
@@ -574,7 +739,11 @@
             title="クリックで並べ替え"
           >
             <div class="flex items-center justify-between gap-1.5">
-              <span>${escapeHtml(header)}</span>
+              <div class="flex items-center gap-1.5">
+                ${isNameCol ? '<span class="text-[10px] font-sans font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200/60">📍名前</span>' : ''}
+                ${isCoordCol && !isNameCol ? '<span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">座標</span>' : ''}
+                <span>${escapeHtml(header)}</span>
+              </div>
               <span class="text-xs font-mono shrink-0">${arrow}</span>
             </div>
           </th>
@@ -598,7 +767,7 @@
       filteredRows.forEach((row, rIdx) => {
         const bgClass = rIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60';
         const rowCoordInfo = getRowNameAndCoordInfo(row, rawHeaders);
-        const primaryName = rowCoordInfo ? rowCoordInfo.displayName : (row[0] || '無題');
+        const primaryName = rowCoordInfo ? rowCoordInfo.displayName : (row[effectiveNameCol] || row[0] || '無題');
         const copyTarget = rowCoordInfo ? rowCoordInfo.fullTextToCopy : primaryName;
 
         bodyHtml += `<tr class="${bgClass} hover:bg-emerald-50/30 transition-colors">`;
@@ -608,7 +777,7 @@
           const val = row[origIndex] !== undefined ? row[origIndex] : '';
           const header = rawHeaders[origIndex];
           const isCoord = isCoordinateCell(val, header);
-          const isNameCol = origIndex === 0;
+          const isNameCol = origIndex === effectiveNameCol;
 
           bodyHtml += '<td class="px-3 sm:px-4 py-2 sm:py-2.5 whitespace-nowrap text-slate-800">';
 
@@ -646,7 +815,7 @@
               </button>
             `;
           } else {
-            // 同一セルで名前＋座標が入っている場合は名前のみ表示
+            // サーバー番号や一般列（コピーボタンは付けずそのまま表示）
             let cellText = val;
             if (rowCoordInfo && rowCoordInfo.isSingleCellMixed && rowCoordInfo.coordColIndex === origIndex) {
               cellText = rowCoordInfo.displayName;
@@ -667,6 +836,7 @@
     function renderCards(filteredRows) {
       const container = document.getElementById('cardsViewContainer');
       const coordIndices = getCoordColumnIndices();
+      const effectiveNameCol = getEffectiveNameColIndex();
 
       if (filteredRows.length === 0) {
         container.innerHTML = `
@@ -680,8 +850,16 @@
       let cardsHtml = '';
       filteredRows.forEach((row, rIdx) => {
         const rowCoordInfo = getRowNameAndCoordInfo(row, rawHeaders);
-        const primaryName = rowCoordInfo ? rowCoordInfo.displayName : (row[0] || '無題');
+        const primaryName = rowCoordInfo ? rowCoordInfo.displayName : (row[effectiveNameCol] || row[0] || '無題');
         const copyTarget = rowCoordInfo ? rowCoordInfo.fullTextToCopy : primaryName;
+
+        // サーバー番号などのバッジ表示（名前列以外の列）
+        let secondaryBadge = '';
+        if (effectiveNameCol !== 0 && row[0]) {
+          secondaryBadge = `<span class="text-xs text-slate-600 shrink-0 font-medium bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">${escapeHtml(row[0])}</span>`;
+        } else if (rawHeaders.length > 1 && row[1] && effectiveNameCol !== 1) {
+          secondaryBadge = `<span class="text-xs text-slate-600 shrink-0 font-medium bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">${escapeHtml(row[1])}</span>`;
+        }
 
         cardsHtml += `
           <div class="bg-white rounded-xl border border-slate-200 p-3.5 shadow-2xs space-y-2.5">
@@ -694,7 +872,7 @@
                 ${rowCoordInfo ? `
                   <button
                     type="button"
-                    onclick="copyCoordinate('${escapeJs(copyTarget)}', event)"
+                    onclick="copyCoordinate('${escapeJs(copyTarget)}', '${escapeJs(primaryName)}', event)"
                     class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border font-bold text-sm text-left truncate bg-emerald-50/60 hover:bg-emerald-100 text-emerald-950 border-emerald-200 active:scale-[0.98] transition-all cursor-pointer"
                     title="名前をタップして【${escapeHtml(copyTarget)}】をコピー"
                   >
@@ -706,7 +884,7 @@
                   <span class="font-bold text-slate-900 text-sm truncate">${escapeHtml(primaryName)}</span>
                 `}
               </div>
-              ${row[1] ? `<span class="text-xs text-slate-400 shrink-0 font-medium">${escapeHtml(row[1])}</span>` : ''}
+              ${secondaryBadge}
             </div>
 
             <!-- 座標タップコピーボタン（別列の座標列を表示している場合のみ） -->
@@ -715,7 +893,7 @@
                 ${coordIndices.map(cIdx => `
                   <button
                     type="button"
-                    onclick="copyCoordinate('${escapeJs(copyTarget)}', event)"
+                    onclick="copyCoordinate('${escapeJs(copyTarget)}', '${escapeJs(primaryName)}', event)"
                     class="w-full flex items-center justify-between p-2.5 rounded-xl border font-mono text-xs bg-emerald-50 text-emerald-900 border-emerald-300 active:scale-[0.98] transition-all min-h-[44px] cursor-pointer"
                     title="タップして【${escapeHtml(copyTarget)}】をコピー"
                   >
@@ -735,7 +913,7 @@
             <!-- その他の項目 -->
             <div class="grid grid-cols-2 gap-1.5 text-xs pt-0.5">
               ${rawHeaders.map((header, cIdx) => {
-                if (cIdx === 0 || coordIndices.includes(cIdx)) return '';
+                if (cIdx === effectiveNameCol || coordIndices.includes(cIdx)) return '';
                 const val = row[cIdx] || '';
                 if (!val) return '';
                 return `
