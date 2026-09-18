@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>同盟座標検索</title>
+
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.in.jsscript>
+
+<style>
+*{
+    box-sizing:border-box;
+}
+
+body{
+    margin:0;
+    padding:15px;
+    background:#f5f7fa;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+}
+
+h1{
+    text-align:center;
+    margin-bottom:15px;
+}
+
+.controls{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    margin-bottom:15px;
+}
+
+input, select{
+    width:100%;
+    padding:12px;
+    border:1px solid #ccc;
+    border-radius:10px;
+    font-size:16px;
+}
+
+.stats{
+    color:#666;
+    margin-bottom:15px;
+}
+
+.card{
+    background:#fff;
+    border-radius:14px;
+    padding:15px;
+    margin-bottom:12px;
+    box-shadow:0 2px 6px rgba(0,0,0,.08);
+}
+
+.top{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.alliance{
+    font-size:22px;
+    font-weight:bold;
+}
+
+.server{
+    color:#555;
+}
+
+.power{
+    margin-top:8px;
+}
+
+.area{
+    margin-top:5px;
+    color:#666;
+}
+
+.coord{
+    margin-top:12px;
+    background:#e8f2ff;
+    border-radius:10px;
+    padding:12px;
+    text-align:center;
+    color:#0057d8;
+    font-weight:bold;
+    cursor:pointer;
+}
+
+.toast{
+    display:none;
+    position:fixed;
+    bottom:20px;
+    left:50%;
+    transform:translateX(-50%);
+    background:#222;
+    color:#fff;
+    padding:12px 18px;
+    border-radius:30px;
+}
+
+.error{
+    color:red;
+    font-weight:bold;
+}
+</style>
+</head>
+<body>
+
+<h1>同盟座標検索</h1>
+
+<div class="controls">
+
+<input
+id="search"
+type="text"
+placeholder="同盟名・サーバー・座標検索">
+
+<select id="areaFilter">
+<option value="">全エリア</option>
+</select>
+
+<select id="sort">
+<option value="">並び替えなし</option>
+<option value="power">戦力順（高→低）</option>
+<option value="server">サーバー順</option>
+</select>
+
+</div>
+
+<div class="stats" id="stats"></div>
+
+<div id="results"></div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+
+const CSV_URL =
+"https://docs.google.com/spreadsheets/d/e/2PACX-1vRnJkX_QsjmxeZMsepepY1VR7eB9eSwaPhnA35iN6rwFxyqDebC_k-ABZZB8VxKM4J9mQGty7phZdEu/pub?output=csv";
+
+let allData = [];
+
+function loadData(){
+
+    Papa.parse(CSV_URL, {
+
+        download: true,
+        header: true,
+
+        complete: function(results){
+
+            allData = results.data
+            .filter(row => row["同盟"])
+            .map(row => ({
+
+                server : row["サーバー"] || "",
+                alliance : row["同盟"] || "",
+                power : row["同盟戦力"] || "",
+                coord : row["通常座標"] || "",
+                map : row["マップ"] || "",
+                area : row["小エリア"] || ""
+
+            }));
+
+            fillAreaFilter();
+            applyFilters();
+        },
+
+        error: function(err){
+
+            document.getElementById("results").innerHTML =
+            "<div class='error'>データ読込エラー</div>";
+
+            console.error(err);
+        }
+
+    });
+}
+
+function fillAreaFilter(){
+
+    const select =
+    document.getElementById("areaFilter");
+
+    select.innerHTML =
+    '<option value="">全エリア</option>';
+
+    const areas =
+    [...new Set(allData.map(x => x.area))]
+    .filter(Boolean)
+    .sort();
+
+    areas.forEach(area => {
+
+        const option =
+        document.createElement("option");
+
+        option.value = area;
+        option.textContent = area;
+
+        select.appendChild(option);
+    });
+}
+
+function render(list){
+
+    const results =
+    document.getElementById("results");
+
+    document.getElementById("stats").textContent =
+    list.length + " 件表示";
+
+    if(list.length === 0){
+
+        results.innerHTML =
+        "<div class='card'>該当データなし</div>";
+
+        return;
+    }
+
+    results.innerHTML = list.map(item => `
+
+        <div class="card">
+
+            <div class="top">
+                <div class="alliance">
+                    ${item.alliance}
+                </div>
+
+                <div class="server">
+                    S${item.server}
+                </div>
+            </div>
+
+            <div class="power">
+                戦力 : ${item.power}
+            </div>
+
+            <div class="area">
+                ${item.area}
+            </div>
+
+            <div
+                class="coord"
+                onclick="copyCoord('${item.coord}')"
+            >
+                ${item.coord}
+            </div>
+
+        </div>
+
+    `).join("");
+}
+
+function copyCoord(coord){
+
+    navigator.clipboard.writeText(coord);
+
+    const toast =
+    document.getElementById("toast");
+
+    toast.textContent =
+    "座標をコピーしました";
+
+    toast.style.display =
+    "block";
+
+    setTimeout(() => {
+
+        toast.style.display =
+        "none";
+
+    }, 1200);
+}
+
+function applyFilters(){
+
+    const keyword =
+    document.getElementById("search")
+    .value
+    .toLowerCase();
+
+    const area =
+    document.getElementById("areaFilter")
+    .value;
+
+    const sort =
+    document.getElementById("sort")
+    .value;
+
+    let list = [...allData];
+
+    list = list.filter(item => {
+
+        const text =
+        Object.values(item)
+        .join(" ")
+        .toLowerCase();
+
+        const searchMatch =
+        text.includes(keyword);
+
+        const areaMatch =
+        !area || item.area === area;
+
+        return searchMatch && areaMatch;
+    });
+
+    if(sort === "power"){
+
+        list.sort((a,b) => {
+
+            const pa =
+            Number(String(a.power).replace(/,/g,""));
+
+            const pb =
+            Number(String(b.power).replace(/,/g,""));
+
+            return pb - pa;
+        });
+    }
+
+    if(sort === "server"){
+
+        list.sort((a,b) =>
+            Number(a.server) - Number(b.server)
+        );
+    }
+
+    render(list);
+}
+
+document
+.getElementById("search")
+.addEventListener("input", applyFilters);
+
+document
+.getElementById("areaFilter")
+.addEventListener("change", applyFilters);
+
+document
+.getElementById("sort")
+.addEventListener("change", applyFilters);
+
+loadData();
+
+setInterval(loadData, 300000);
+
+</script>
+
+</body>
+</html>
