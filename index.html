@@ -4,10 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>スプレッドシート データ一覧</title>
-  <!-- Tailwind CSS CDN（ビルド不要・単一HTMLで完結） -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* 横スクロールバーのスタイリング */
     .table-container::-webkit-scrollbar {
       height: 6px;
     }
@@ -18,16 +16,17 @@
       background: #cbd5e1;
       border-radius: 3px;
     }
-    /* タップ時のハイライト改善 */
     button, a {
       -webkit-tap-highlight-color: transparent;
     }
   </style>
 </head>
+
 <body class="bg-slate-50 text-slate-800 min-h-screen font-sans antialiased selection:bg-emerald-100 selection:text-emerald-900">
+
   <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
-    
-    <!-- ヘッダーエリア（スマホにフィット） -->
+
+    <!-- ヘッダー -->
     <header class="mb-4 flex items-center justify-between gap-3 border-b border-slate-200 pb-3 sm:pb-4">
       <div class="min-w-0">
         <h1 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2 truncate">
@@ -39,7 +38,6 @@
         </p>
       </div>
 
-      <!-- 更新ボタン -->
       <button
         id="refreshBtn"
         onclick="fetchSheetData()"
@@ -47,17 +45,19 @@
         title="最新データを再取得"
       >
         <svg id="refreshIcon" class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
         <span>更新</span>
       </button>
     </header>
 
-    <!-- 検索バー ＆ 表示切替（スマホ表示最適化） -->
+    <!-- 検索・コントロール -->
     <div class="mb-3 sm:mb-4 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2.5">
+
       <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-        
-        <!-- 検索入力 -->
+
+        <!-- 検索 -->
         <div class="relative flex-1">
           <input
             type="text"
@@ -66,9 +66,13 @@
             placeholder="表全体を検索..."
             class="w-full pl-9 pr-8 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all text-slate-800"
           />
-          <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+
+          <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none"
+            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
+
           <button
             id="clearSearchBtn"
             onclick="clearSearch()"
@@ -78,20 +82,23 @@
           </button>
         </div>
 
-      <!-- コントロール群: 件数 & 表/カード切替 & 座標列非表示切替 -->
+      </div>
+
       <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
+
         <div class="flex flex-wrap items-center gap-2">
-          <!-- B列+D列 / F列+G列 ペア連携モード切り替え -->
+
+          <!-- ペア連携モード -->
           <button
             id="togglePairedModeBtn"
             onclick="togglePairedMode()"
             class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs bg-emerald-50 text-emerald-900 border-emerald-300 font-semibold shadow-2xs select-none cursor-pointer"
-            title="B列+D列 / F列+G列 ペアコピー連携モード（D列・G列を非表示にし、BタップでB+D、FタップでF+Gをコピー）"
+            title="B列+D列 / F列+G列 ペアコピー連携モード"
           >
             <span id="pairedModeText">✓ B列+D列 / F列+G列 ペア連携中</span>
           </button>
 
-          <!-- サーバー番号除外切り替え -->
+          <!-- サーバー番号除外 -->
           <button
             id="toggleExcludeServerBtn"
             onclick="toggleExcludeServer()"
@@ -101,7 +108,7 @@
             <span id="excludeServerText">✓ サーバー番号を除外</span>
           </button>
 
-          <!-- 座標列の表示/非表示（名前タップでコピー切替） -->
+          <!-- 座標列表示切替 -->
           <button
             id="toggleCoordColumnBtn"
             onclick="toggleHideCoordColumn()"
@@ -132,13 +139,13 @@
               id="allianceColSelect"
               onchange="onAllianceColChange(this.value)"
               class="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium cursor-pointer text-xs"
-              title="通常座標コピー時に付与する同盟名の列（デフォルト: B列）"
+              title="通常座標コピー時に付与する同盟名の列"
             >
               <option value="">自動判定中...</option>
             </select>
           </div>
 
-          <!-- プレイヤー名にも同盟付与切替 -->
+          <!-- プレイヤー名にも同盟付与 -->
           <button
             id="toggleIncludeAllianceBtn"
             onclick="toggleIncludeAlliance()"
@@ -147,15 +154,19 @@
           >
             <span id="includeAllianceText">同盟名(B列)を連携中</span>
           </button>
+
         </div>
 
         <div class="flex items-center gap-2 ml-auto">
-          <span id="recordCount" class="font-medium text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg">
+
+          <span id="recordCount"
+            class="font-medium text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg">
             0 件
           </span>
 
-          <!-- スマホ用: 表 / カード表示切替 -->
+          <!-- 表 / カード -->
           <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+
             <button
               id="viewModeTableBtn"
               onclick="setViewMode('table')"
@@ -163,6 +174,7 @@
             >
               表
             </button>
+
             <button
               id="viewModeCardsBtn"
               onclick="setViewMode('cards')"
@@ -170,31 +182,40 @@
             >
               カード
             </button>
+
           </div>
         </div>
       </div>
 
-      <!-- ソート解除バー（並べ替え中のみ表示） -->
-      <div id="sortStatusContainer" class="hidden flex items-center gap-2 pt-1 border-t border-slate-100 text-xs">
+      <!-- ソート状態 -->
+      <div id="sortStatusContainer"
+        class="hidden flex items-center gap-2 pt-1 border-t border-slate-100 text-xs">
+
         <span class="text-slate-500">並べ替え:</span>
+
         <div class="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-md border border-emerald-200 font-medium">
           <span id="sortStatusText"></span>
-          <button onclick="resetSort()" class="hover:text-emerald-950 font-bold p-0.5" title="解除">✕</button>
+          <button onclick="resetSort()" class="hover:text-emerald-950 font-bold p-0.5" title="解除">
+            ✕
+          </button>
         </div>
       </div>
+
     </div>
 
-    <!-- 読込中 / エラー通知メッセージ -->
+    <!-- ステータス -->
     <div id="statusMessage" class="hidden mb-3 p-3 rounded-xl text-xs sm:text-sm border"></div>
 
-    <!-- コンテンツ表示エリア (表 または カード) -->
-    <!-- 1. 表表示 -->
-    <div id="tableViewContainer" class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+    <!-- テーブル -->
+    <div id="tableViewContainer"
+      class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+
       <div class="table-container overflow-x-auto">
+
         <table class="min-w-full divide-y divide-slate-200 text-xs sm:text-sm text-left">
-          <thead id="tableHead" class="bg-slate-50 text-slate-700 select-none">
-            <!-- JSで動的生成 -->
-          </thead>
+
+          <thead id="tableHead" class="bg-slate-50 text-slate-700 select-none"></thead>
+
           <tbody id="tableBody" class="divide-y divide-slate-100 bg-white">
             <tr>
               <td colspan="10" class="py-12 text-center text-slate-400">
@@ -202,1175 +223,275 @@
               </td>
             </tr>
           </tbody>
+
         </table>
+
       </div>
     </div>
 
-    <!-- 2. スマホ用カード表示 -->
-    <div id="cardsViewContainer" class="hidden space-y-2.5">
-      <!-- JSで動的生成 -->
-    </div>
+    <!-- カード -->
+    <div id="cardsViewContainer" class="hidden space-y-2.5"></div>
 
-    <!-- フッター説明 -->
+    <!-- フッター -->
     <footer class="mt-4 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-1.5 px-1">
-      <p>💡 📍ピンが付いた「名前」のボタンをタップすると、【名前＋座標】がクリップボードにコピーされます。</p>
-      <p class="hidden sm:inline">列の見出しタップで「昇順 / 降順」に並べ替え</p>
+      <p>
+        💡 📍ピンが付いた「名前」のボタンをタップすると、【名前＋座標】がクリップボードにコピーされます。
+      </p>
+      <p class="hidden sm:inline">
+        列の見出しタップで「昇順 / 降順」に並べ替え
+      </p>
     </footer>
 
   </div>
 
-  <!-- フローティング コピートースト通知（スマホ画面下部にフィット） -->
-  <div id="copyToast" class="hidden fixed bottom-4 inset-x-3 sm:inset-x-auto sm:right-6 sm:bottom-6 z-50 flex items-center justify-center pointer-events-none">
+  <!-- コピー通知 -->
+  <div id="copyToast"
+    class="hidden fixed bottom-4 inset-x-3 sm:inset-x-auto sm:right-6 sm:bottom-6 z-50 flex items-center justify-center pointer-events-none">
+
     <div class="w-full sm:w-auto flex items-center gap-2 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl text-xs sm:text-sm font-medium border border-slate-700 pointer-events-auto">
-      <span class="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 text-xs font-bold">✓</span>
+
+      <span class="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 text-xs font-bold">
+        ✓
+      </span>
+
       <div class="truncate flex-1">
         <span class="text-emerald-400 font-semibold">名前＋座標をコピー:</span>
-        <span id="copyToastText" class="font-mono bg-slate-800 px-2 py-0.5 rounded border border-slate-700 ml-1"></span>
+        <span id="copyToastText"
+          class="font-mono bg-slate-800 px-2 py-0.5 rounded border border-slate-700 ml-1"></span>
       </div>
+
     </div>
   </div>
 
-  <!-- スクリプト: スプレッドシート連携・座標判定・タップコピー・検索・並べ替え -->
-  <script>
-    /**
-     * 【設定】Googleスプレッドシートの公開CSV URL
-     */
-    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRnJkX_QsjmxeZMsepepY1VR7eB9eSwaPhnA35iN6rwFxyqDebC_k-ABZZB8VxKM4J9mQGty7phZdEu/pub?output=csv";
+<script>
 
-    let rawHeaders = [];
-    let rawRows = [];
-    let currentSort = { colIndex: null, direction: null };
-    let currentViewMode = 'table'; // スマホも含め、全端末で「表（テーブル）」表示がデフォルト
-    let hideCoordColumn = false; // 座標列を隠して「名前タップでコピー」のみにするモード
-    let selectedNameColIndex = null; // ユーザーが選択した名前列（nullなら自動判定）
-    let selectedAllianceColIndex = null; // ユーザーが選択した同盟列（nullなら自動判定: B列または'同盟'列）
-    let includeAllianceWithPlayer = false; // プレイヤー名コピー時にも同盟名を付与するか（通常座標は常に同盟名を付与）
-    let excludeServer = true; // デフォルトでS:511等のサーバー番号は除外してコピー
-    let pairedMode = true; // B列+D列 / F列+G列 ペア連携モード (デフォルト有効)
-    let pair1NameCol = 1; // B列 (index 1)
-    let pair1CoordCol = 3; // D列 (index 3)
-    let pair2NameCol = 5; // F列 (index 5)
-    let pair2CoordCol = 6; // G列 (index 6)
-    let toastTimeout = null;
+const SHEET_CSV_URL =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vRnJkX_QsjmxeZMsepepY1VR7eB9eSwaPhnA35iN6rwFxyqDebC_k-ABZZB8VxKM4J9mQGty7phZdEu/pub?output=csv";
 
-    // ペア列情報（B列+D列 / F列+G列）の結合テキスト生成
-    function getPairedCopyInfo(nameVal, coordVal, excludeSrv = true) {
-      const name = (nameVal || '').trim();
-      let coord = (coordVal || '').trim();
-      if (excludeSrv && coord) {
-        coord = stripServerFromCoord(coord);
-      }
-      let copyText = '';
-      if (name && coord) {
-        copyText = name + ' ' + coord;
-      } else if (name) {
-        copyText = name;
-      } else if (coord) {
-        copyText = coord;
-      }
-      return {
-        displayName: name || coord,
-        copyText: copyText,
-        hasContent: Boolean(copyText)
-      };
+let rawHeaders = [];
+let rawRows = [];
+
+let currentSort = {
+  colIndex: null,
+  direction: null
+};
+
+let currentViewMode = 'table';
+let hideCoordColumn = false;
+let selectedNameColIndex = null;
+let selectedAllianceColIndex = null;
+let includeAllianceWithPlayer = false;
+let excludeServer = true;
+
+let pairedMode = true;
+
+let pair1NameCol = 1;
+let pair1CoordCol = 3;
+let pair2NameCol = 5;
+let pair2CoordCol = 6;
+
+let toastTimeout = null;
+
+
+/* =========================================================
+   ペアコピー
+========================================================= */
+
+function getPairedCopyInfo(nameVal, coordVal, excludeSrv = true) {
+
+  const name = (nameVal || '').trim();
+
+  let coord = (coordVal || '').trim();
+
+  if (excludeSrv && coord) {
+    coord = stripServerFromCoord(coord);
+  }
+
+  let copyText = '';
+
+  if (name && coord) {
+    copyText = name + ' ' + coord;
+  } else if (name) {
+    copyText = name;
+  } else if (coord) {
+    copyText = coord;
+  }
+
+  return {
+    displayName: name || coord,
+    copyText: copyText,
+    hasContent: Boolean(copyText)
+  };
+}
+
+
+/* =========================================================
+   同盟列判定
+========================================================= */
+
+function findAllianceColumnIndex(headers) {
+
+  if (!headers || headers.length === 0) return -1;
+
+  const allianceKeywords = [
+    '同盟',
+    '同盟名',
+    '同盟略称',
+    'ギルド',
+    'guild',
+    'alliance',
+    'clan',
+    '連盟',
+    'チーム',
+    '勢力',
+    '軍団',
+    'タグ',
+    'tag'
+  ];
+
+  for (let i = 0; i < headers.length; i++) {
+
+    const h = (headers[i] || '').toLowerCase().trim();
+
+    if (allianceKeywords.some(kw => h.includes(kw))) {
+      return i;
     }
+  }
 
-    // 最適な「同盟列」のインデックスを自動検出（'同盟'やB列/インデックス1）
-    function findAllianceColumnIndex(headers) {
-      if (!headers || headers.length === 0) return -1;
-      const allianceKeywords = [
-        '同盟', '同盟名', '同盟略称', 'ギルド', 'guild', 'alliance', 'clan', '連盟', 'チーム', '勢力', '軍団', 'タグ', 'tag'
-      ];
-      for (let i = 0; i < headers.length; i++) {
-        const h = (headers[i] || '').toLowerCase().trim();
-        if (allianceKeywords.some(kw => h.includes(kw))) {
-          return i;
-        }
-      }
-      if (headers.length > 1) {
-        const h1 = (headers[1] || '').toLowerCase().trim();
-        if (
-          !h1.includes('座標') &&
-          !h1.includes('coord') &&
-          !h1.includes('サーバー') &&
-          !h1.includes('server') &&
-          !h1.includes('名前') &&
-          !h1.includes('プレイヤー')
-        ) {
-          return 1;
-        }
-      }
-      return -1;
+  if (headers.length > 1) {
+
+    const h1 = (headers[1] || '').toLowerCase().trim();
+
+    if (
+      !h1.includes('座標') &&
+      !h1.includes('coord') &&
+      !h1.includes('サーバー') &&
+      !h1.includes('server') &&
+      !h1.includes('名前') &&
+      !h1.includes('プレイヤー')
+    ) {
+      return 1;
     }
+  }
 
-    function getEffectiveAllianceColIndex() {
-      if (selectedAllianceColIndex !== null && selectedAllianceColIndex >= 0 && selectedAllianceColIndex < rawHeaders.length) {
-        return selectedAllianceColIndex;
-      }
-      return findAllianceColumnIndex(rawHeaders);
+  return -1;
+}
+
+
+function getEffectiveAllianceColIndex() {
+
+  if (
+    selectedAllianceColIndex !== null &&
+    selectedAllianceColIndex >= 0 &&
+    selectedAllianceColIndex < rawHeaders.length
+  ) {
+    return selectedAllianceColIndex;
+  }
+
+  return findAllianceColumnIndex(rawHeaders);
+}
+
+
+function getRowAlliance(row, headers, explicitCol = -1) {
+
+  const colIdx =
+    explicitCol >= 0
+      ? explicitCol
+      : getEffectiveAllianceColIndex();
+
+  if (colIdx >= 0 && colIdx < row.length) {
+
+    const val = (row[colIdx] || '').trim();
+
+    if (
+      val &&
+      !isCoordinateCell(val, headers[colIdx] || '') &&
+      !/^[SsKk]?:?\d+$/.test(val)
+    ) {
+      return val;
     }
+  }
 
-    function getRowAlliance(row, headers, explicitCol = -1) {
-      const colIdx = explicitCol >= 0 ? explicitCol : getEffectiveAllianceColIndex();
-      if (colIdx >= 0 && colIdx < row.length) {
-        const val = (row[colIdx] || '').trim();
-        if (val && !isCoordinateCell(val, headers[colIdx] || '') && !/^[SsKk]?:?s*d+$/.test(val)) {
-          return val;
-        }
-      }
-      if (colIdx !== 1 && row.length > 1) {
-        const val = (row[1] || '').trim();
-        if (val && !isCoordinateCell(val, headers[1] || '') && !/^[SsKk]?:?s*d+$/.test(val)) {
-          return val;
-        }
-      }
-      return '';
+  if (colIdx !== 1 && row.length > 1) {
+
+    const val = (row[1] || '').trim();
+
+    if (
+      val &&
+      !isCoordinateCell(val, headers[1] || '') &&
+      !/^[SsKk]?:?\d+$/.test(val)
+    ) {
+      return val;
     }
+  }
 
-    // 座標文字列からサーバー番号（例: S:511, S511, K:12, 鯖:511, #511）を取り除く
-    function stripServerFromCoord(coord) {
-      if (!coord) return '';
-      return coord
-        .replace(/^([SsKk#]|(?:鯖|サーバー):?)s*d+[s,]+/i, '')
-        .trim();
+  return '';
+}
+
+
+/* =========================================================
+   サーバー番号除去
+========================================================= */
+
+function stripServerFromCoord(coord) {
+
+  if (!coord) return '';
+
+  return coord
+    .replace(/^([SsKk#]|(?:鯖|サーバー):?)\s*\d+[\s,]+/i, '')
+    .trim();
+}
+
+
+/* =========================================================
+   名前列判定
+========================================================= */
+
+function findNameColumnIndex(headers, rows) {
+
+  if (!headers || headers.length === 0) return 0;
+
+  const nameKeywords = [
+    '名前',
+    'プレイヤー名',
+    'プレイヤー',
+    '城主',
+    '君主',
+    'ユーザー名',
+    'ユーザー',
+    'キャラ名',
+    'キャラクター',
+    'キャラ',
+    '垢名',
+    'ネーム',
+    'ターゲット',
+    '標的',
+    'player',
+    'user',
+    'username',
+    'name',
+    'target',
+    '拠点',
+    '地点名',
+    '地点',
+    '名称'
+  ];
+
+  for (let i = 0; i < headers.length; i++) {
+
+    const h = (headers[i] || '').toLowerCase().trim();
+
+    if (nameKeywords.some(kw => h.includes(kw))) {
+      return i;
     }
-
-    // 最適な「名前列」のインデックスを自動検出（サーバー列やID列、座標列をスキップ）
-    function findNameColumnIndex(headers, rows) {
-      if (!headers || headers.length === 0) return 0;
-
-      // 1. 名前系キーワードを優先検索
-      const nameKeywords = [
-        '名前', 'プレイヤー名', 'プレイヤー', '城主', '君主', 'ユーザー名', 'ユーザー',
-        'キャラ名', 'キャラクター', 'キャラ', '垢名', 'ネーム', 'ターゲット', '標的',
-        'player', 'user', 'username', 'name', 'target', '拠点', '地点名', '地点', '名称'
-      ];
-
-      for (let i = 0; i < headers.length; i++) {
-        const h = (headers[i] || '').toLowerCase().trim();
-        if (nameKeywords.some(kw => h.includes(kw))) {
-          return i;
-        }
-      }
-
-      // 2. サーバー、座標、IDなどの除外キーワード
-      const negativeKeywords = [
-        'サーバー', 'server', 's#', '鯖', '国', '王国', 'realm', 'kingdom', 'world',
-        '座標', 'coord', 'loc', 'x', 'y', '緯度', '経度', 'position',
-        'no', '#', 'id', '連番', '番号', 'index',
-        'タイプ', 'type', '役職', '階級', '同盟', 'ギルド', 'clan', 'alliance',
-        '備考', 'memo', 'メモ', '日時', '日付', 'date', 'time'
-      ];
-
-      for (let i = 0; i < headers.length; i++) {
-        const h = (headers[i] || '').toLowerCase().trim();
-        const isNegative = negativeKeywords.some(kw => h === kw || h.startsWith(kw) || h.endsWith(kw));
-        if (isNegative) continue;
-
-        // サンプルデータを検証（サーバー番号や座標だけが入っている列を除外）
-        if (rows && rows.length > 0) {
-          const sampleVals = rows.slice(0, 15).map(r => (r[i] || '').trim()).filter(Boolean);
-          if (sampleVals.length === 0) continue;
-
-          // サーバー番号っぽい値 (例: 511, S:511, S511)
-          const mostlyServers = sampleVals.every(v => /^[SsKk]?:?s*d+$/.test(v));
-          if (mostlyServers) continue;
-
-          // 座標っぽい値
-          const mostlyCoords = sampleVals.every(v => isCoordinateCell(v, headers[i]));
-          if (mostlyCoords) continue;
-
-          // 単なる1〜4桁の数値（IDや連番）
-          const mostlySmallNumbers = sampleVals.every(v => /^d{1,4}$/.test(v));
-          if (mostlySmallNumbers) continue;
-        }
-
-        return i;
-      }
-
-      // 3. 消去法（サーバーや座標を含まない最初の列）
-      for (let i = 0; i < headers.length; i++) {
-        const h = (headers[i] || '').toLowerCase().trim();
-        if (!h.includes('サーバー') && !h.includes('server') && !h.includes('座標') && !h.includes('coord')) {
-          return i;
-        }
-      }
-
-      return 0;
-    }
-
-    function getEffectiveNameColIndex() {
-      if (selectedNameColIndex !== null && selectedNameColIndex >= 0 && selectedNameColIndex < rawHeaders.length) {
-        return selectedNameColIndex;
-      }
-      return findNameColumnIndex(rawHeaders, rawRows);
-    }
-
-    // 通常座標・ゲーム座標かどうかの判定（一般の価格、個数、日付、IDなどは除外）
-    function isCoordinateCell(val, headerName = '') {
-      if (!val) return false;
-      const t = String(val).trim();
-
-      // 単なる数値（例: "120", "¥500", "50%" など）は座標ではない
-      if (/^[-+]?[¥$]?[0-9,]+(\.[0-9]+)?%?$/.test(t)) return false;
-
-      // 日付は除外
-      if (/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}/.test(t)) return false;
-
-      // 単なるIDコード（例: PRD-1001）は除外
-      if (/^[A-Za-z0-9]+-[A-Za-z0-9-]+$/.test(t) && !t.toLowerCase().includes('x')) return false;
-
-      const h = (headerName || '').toLowerCase();
-      const isCoordHeader = h.includes('座標') || h.includes('coord') || h.includes('lat') || h.includes('lng') || h.includes('位置') || h.includes('地点');
-
-      // ゲーム座標パターン: S:511 X:238 Y:540, K:12 X:100 Y:200, X:238 Y:540
-      if (/^([SsKk]:?\s*\d+[\s,]+)?[Xx]:?\s*[-+]?\d+(\.\d+)?[\s,]+[Yy]:?\s*[-+]?\d+/i.test(t)) return true;
-
-      // 緯度経度パターン: 35.6586, 139.7454
-      if (/^[-+]?\d{1,3}\.\d{3,}\s*,\s*[-+]?\d{1,3}\.\d{3,}$/.test(t)) return true;
-
-      // 括弧付き座標: (120, 340)
-      if (/^\(\s*[-+]?\d+(\.\d+)?\s*,\s*[-+]?\d+(\.\d+)?(\s*,\s*[-+]?\d+(\.\d+)?)?\s*\)$/.test(t)) return true;
-
-      // ラベル付き座標: X:120 Y:340
-      if (/^[Xx]:?\s*[-+]?\d+(\.\d+)?[\s,]+[Yy]:?\s*[-+]?\d+(\.\d+)?/i.test(t)) return true;
-
-      // カンマ区切りの2〜3個の数値
-      if (/^[-+]?\d+(\.\d+)?\s*,\s*[-+]?\d+(\.\d+)?(\s*,\s*[-+]?\d+(\.\d+)?)?$/.test(t)) return true;
-
-      if (isCoordHeader && /\d+.*[,:\s].*\d+/.test(t)) return true;
-
-      return false;
-    }
-
-    // セル内の座標および名前を抽出
-    function extractCoordinate(text) {
-      if (!text) return null;
-      const trimmed = String(text).trim();
-      if (!trimmed) return null;
-
-      // 日付や単純IDは除外
-      if (/^d{4}[-/.]d{1,2}[-/.]d{1,2}/.test(trimmed)) return null;
-      if (/^[A-Za-z0-9]+-[A-Za-z0-9-]+$/.test(trimmed) && !trimmed.toLowerCase().includes('x')) return null;
-
-      if (isCoordinateCell(trimmed)) {
-        return { name: '', coord: trimmed };
-      }
-
-      // ゲーム座標パターン: S:511 X:240 Y:538 または X:240 Y:538
-      const gameMatch = trimmed.match(/((?:[SsKk]:?s*d+[s,]+)?[Xx]:?s*[-+]?d+(?:.d+)?[s,]+[Yy]:?s*[-+]?d+(?:.d+)?)/i);
-      if (gameMatch) {
-        const coord = gameMatch[1].trim();
-        const name = trimmed.replace(gameMatch[0], '').trim();
-        if (name) return { name, coord };
-      }
-
-      // 緯度経度パターン: 35.6586, 139.7454
-      const latLngMatch = trimmed.match(/([-+]?d{1,3}.d{3,}s*,s*[-+]?d{1,3}.d{3,})/);
-      if (latLngMatch) {
-        const coord = latLngMatch[1].trim();
-        const name = trimmed.replace(latLngMatch[0], '').trim();
-        if (name) return { name, coord };
-      }
-
-      return null;
-    }
-
-    // 行の中から座標文字列を抽出
-    function findRowCoordinate(row, headers) {
-      for (let cIdx = 0; cIdx < headers.length; cIdx++) {
-        const val = row[cIdx] || '';
-        if (isCoordinateCell(val, headers[cIdx])) {
-          return { coordText: val.trim(), coordColIndex: cIdx };
-        }
-      }
-      return null;
-    }
-
-    // 行から表示用名称とコピー用文字列（名前＋座標）を算出
-    function getRowNameAndCoordInfo(row, headers) {
-      const effectiveNameCol = getEffectiveNameColIndex();
-      const alliance = getRowAlliance(row, headers);
-
-      // 1. 同一セル内に「名前＋座標」が同居しているかチェック（名前列を優先探索）
-      const checkOrder = [effectiveNameCol, ...headers.map((_, idx) => idx).filter(idx => idx !== effectiveNameCol)];
-      for (const cIdx of checkOrder) {
-        if (cIdx < 0 || cIdx >= headers.length) continue;
-        const cellVal = (row[cIdx] || '').trim();
-        const extracted = extractCoordinate(cellVal);
-        if (extracted && extracted.name && extracted.coord) {
-          const finalCoord = excludeServer ? stripServerFromCoord(extracted.coord) : extracted.coord;
-          const fullText = includeAllianceWithPlayer && alliance
-            ? alliance + ' ' + extracted.name + ' ' + finalCoord
-            : extracted.name + ' ' + finalCoord;
-          return {
-            displayName: extracted.name,
-            coordText: finalCoord,
-            fullTextToCopy: fullText,
-            coordColIndex: cIdx,
-            nameColIndex: cIdx,
-            allianceName: alliance,
-            hasPlayerName: true,
-            isSingleCellMixed: true,
-          };
-        }
-      }
-
-      // 2. 別々の列（名前列と座標列）に分かれている場合
-      const coordInfo = findRowCoordinate(row, headers);
-      if (coordInfo && coordInfo.coordText) {
-        const cellAtNameCol = (row[effectiveNameCol] !== undefined ? row[effectiveNameCol] : (row[0] || '')).trim();
-        const finalCoord = excludeServer ? stripServerFromCoord(coordInfo.coordText) : coordInfo.coordText;
-
-        const isCoordItself = effectiveNameCol === coordInfo.coordColIndex || isCoordinateCell(cellAtNameCol, headers[effectiveNameCol] || '');
-        const actualPlayerName = !isCoordItself ? cellAtNameCol : '';
-        const hasPlayerName = Boolean(actualPlayerName);
-
-        let displayName = '';
-        let fullTextToCopy = '';
-
-        if (hasPlayerName) {
-          displayName = actualPlayerName;
-          if (includeAllianceWithPlayer && alliance) {
-            fullTextToCopy = alliance + ' ' + actualPlayerName + ' ' + finalCoord;
-          } else {
-            fullTextToCopy = actualPlayerName + ' ' + finalCoord;
-          }
-        } else {
-          // 通常座標（プレイヤー名セルが空の場合）: B列の同盟名を付与、同盟も無ければ座標のみ
-          if (alliance) {
-            displayName = alliance;
-            fullTextToCopy = alliance + ' ' + finalCoord;
-          } else {
-            displayName = finalCoord;
-            fullTextToCopy = finalCoord;
-          }
-        }
-
-        return {
-          displayName: displayName,
-          coordText: finalCoord,
-          fullTextToCopy: fullTextToCopy,
-          coordColIndex: coordInfo.coordColIndex,
-          nameColIndex: effectiveNameCol,
-          allianceName: alliance,
-          hasPlayerName: hasPlayerName,
-          isSingleCellMixed: false,
-        };
-      }
-
-      return null;
-    }
-
-    // 座標列のインデックス一覧を取得
-    function getCoordColumnIndices() {
-      const indices = [];
-      rawHeaders.forEach((h, idx) => {
-        const isCoordHdr = h.toLowerCase().includes('座標') || h.toLowerCase().includes('coord');
-        const hasSampleCoord = rawRows.slice(0, 10).some(r => isCoordinateCell(r[idx] || '', h));
-        if (isCoordHdr || hasSampleCoord) indices.push(idx);
-      });
-      return indices;
-    }
-
-    // 表示する列インデックス一覧
-    function getVisibleColumnIndices() {
-      if (pairedMode) {
-        const hidden = [pair1CoordCol, pair2CoordCol];
-        const visible = [];
-        rawHeaders.forEach((_, idx) => {
-          if (!hidden.includes(idx)) {
-            visible.push(idx);
-          }
-        });
-        return visible;
-      }
-      const coordIndices = getCoordColumnIndices();
-      const visible = [];
-      rawHeaders.forEach((_, idx) => {
-        if (!hideCoordColumn || !coordIndices.includes(idx)) {
-          visible.push(idx);
-        }
-      });
-      return visible;
-    }
-
-    // CSVパース
-    function parseCSV(text) {
-      const rows = [];
-      let currentRow = [];
-      let currentVal = '';
-      let inQuotes = false;
-
-      for (let i = 0; i < text.length; i++) {
-        const char = text[i];
-        const nextChar = text[i + 1];
-
-        if (char === '"') {
-          if (inQuotes && nextChar === '"') {
-            currentVal += '"';
-            i++;
-          } else {
-            inQuotes = !inQuotes;
-          }
-        } else if (char === ',' && !inQuotes) {
-          currentRow.push(currentVal.trim());
-          currentVal = '';
-        } else if ((char === '\r' || char === '\n') && !inQuotes) {
-          if (char === '\r' && nextChar === '\n') i++;
-          currentRow.push(currentVal.trim());
-          if (currentRow.some(c => c.length > 0)) rows.push(currentRow);
-          currentRow = [];
-          currentVal = '';
-        } else {
-          currentVal += char;
-        }
-      }
-      if (currentVal.length > 0 || currentRow.length > 0) {
-        currentRow.push(currentVal.trim());
-        if (currentRow.some(c => c.length > 0)) rows.push(currentRow);
-      }
-      return rows;
-    }
-
-    // スプレッドシートからデータ取得
-    async function fetchSheetData() {
-      const refreshIcon = document.getElementById('refreshIcon');
-      if (refreshIcon) refreshIcon.classList.add('animate-spin');
-
-      showStatus('データを読み込み中...', 'info');
-
-      try {
-        if (!SHEET_CSV_URL || SHEET_CSV_URL.includes('XXXXXXXXXXXXX')) {
-          throw new Error('スプレッドシートのURLが未設定です。HTML内の SHEET_CSV_URL を設定してください。');
-        }
-
-        const cacheBustUrl = SHEET_CSV_URL + (SHEET_CSV_URL.includes('?') ? '&' : '?') + '_t=' + Date.now();
-        const response = await fetch(cacheBustUrl);
-
-        if (!response.ok) {
-          throw new Error('データの取得に失敗しました (HTTP ' + response.status + ')。スプレッドシートが「ウェブに公開」されているか確認してください。');
-        }
-
-        const csvText = await response.text();
-        const parsedData = parseCSV(csvText);
-
-        if (parsedData.length === 0) {
-          throw new Error('スプレッドシートにデータが見つかりませんでした。');
-        }
-
-        rawHeaders = parsedData[0];
-        rawRows = parsedData.slice(1);
-
-        updateNameColSelect();
-        updateAllianceColSelect();
-        hideStatus();
-        render();
-
-      } catch (err) {
-        console.error(err);
-        showStatus('エラー: ' + err.message, 'error');
-        document.getElementById('tableBody').innerHTML = `
-          <tr>
-            <td colspan="10" class="py-8 text-center text-red-500 font-medium">
-              データの取得に失敗しました。<br>
-              <span class="text-xs text-slate-500">スプレッドシートの「ウェブに公開」設定をご確認ください。</span>
-            </td>
-          </tr>
-        `;
-      } finally {
-        if (refreshIcon) refreshIcon.classList.remove('animate-spin');
-      }
-    }
-
-    // 座標タップコピー実行
-    async function copyCoordinate(text, label, e) {
-      if (e) e.stopPropagation();
-      const clean = (text || '').trim();
-      if (!clean) return;
-
-      try {
-        await navigator.clipboard.writeText(clean);
-        showToast(clean, label);
-      } catch (err) {
-        // フォールバック（古いブラウザやパーミッション対策）
-        const textArea = document.createElement('textarea');
-        textArea.value = clean;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        showToast(clean, label);
-      }
-    }
-
-    // コピートースト表示
-    function showToast(text, label) {
-      const toast = document.getElementById('copyToast');
-      const toastText = document.getElementById('copyToastText');
-      if (!toast || !toastText) return;
-
-      toastText.textContent = text + (label ? ' (' + label + ')' : '');
-      toast.classList.remove('hidden');
-
-      if (toastTimeout) clearTimeout(toastTimeout);
-      toastTimeout = setTimeout(() => {
-        toast.classList.add('hidden');
-      }, 2400);
-    }
-
-    // 座標列の表示/非表示（名前タップでコピーのみ切替）
-    function toggleHideCoordColumn() {
-      hideCoordColumn = !hideCoordColumn;
-      const btn = document.getElementById('toggleCoordColumnBtn');
-      const icon = document.getElementById('toggleCoordIcon');
-      const text = document.getElementById('toggleCoordText');
-      if (btn && icon && text) {
-        if (hideCoordColumn) {
-          btn.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold shadow-2xs transition-colors select-none cursor-pointer';
-          icon.textContent = '🙈';
-          text.textContent = '座標列: 非表示中（名前タップでコピー）';
-        } else {
-          btn.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 transition-colors select-none cursor-pointer';
-          icon.textContent = '👁️';
-          text.textContent = '表示を「名前タップでコピー」のみに切替';
-        }
-      }
-      render();
-    }
-
-    // B列+D列 / F列+G列 ペア連携モード切り替え
-    function togglePairedMode() {
-      pairedMode = !pairedMode;
-      const btn = document.getElementById('togglePairedModeBtn');
-      const text = document.getElementById('pairedModeText');
-      if (btn && text) {
-        if (pairedMode) {
-          btn.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs bg-emerald-50 text-emerald-900 border-emerald-300 font-semibold shadow-2xs select-none cursor-pointer';
-          text.textContent = '✓ B列+D列 / F列+G列 ペア連携中';
-        } else {
-          btn.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 select-none cursor-pointer';
-          text.textContent = 'ペア連携OFF (通常表示)';
-        }
-      }
-      render();
-    }
-
-    // サーバー番号(S:511等)の除外切り替え
-    function toggleExcludeServer() {
-      excludeServer = !excludeServer;
-      const btn = document.getElementById('toggleExcludeServerBtn');
-      const text = document.getElementById('excludeServerText');
-      if (btn && text) {
-        if (excludeServer) {
-          btn.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs bg-amber-50 text-amber-900 border-amber-300 font-semibold shadow-2xs select-none cursor-pointer';
-          text.textContent = '✓ サーバー番号を除外';
-        } else {
-          btn.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 select-none cursor-pointer';
-          text.textContent = 'サーバー番号を含む';
-        }
-      }
-      render();
-    }
-
-    // 名前列選択ドロップダウンの更新
-    function updateNameColSelect() {
-      const container = document.getElementById('nameColContainer');
-      const select = document.getElementById('nameColSelect');
-      if (!select || !container) return;
-
-      if (!rawHeaders || rawHeaders.length <= 1) {
-        container.classList.add('hidden');
-        return;
-      }
-
-      container.classList.remove('hidden');
-      const autoIdx = findNameColumnIndex(rawHeaders, rawRows);
-      const autoLabel = rawHeaders[autoIdx] || ('列 ' + (autoIdx + 1));
-
-      let optionsHtml = '<option value="">自動判定: ' + escapeHtml(autoLabel) + '</option>';
-      rawHeaders.forEach((h, idx) => {
-        const isSelected = selectedNameColIndex === idx ? ' selected' : '';
-        optionsHtml += '<option value="' + idx + '"' + isSelected + '>' + escapeHtml(h || ('列 ' + (idx + 1))) + '</option>';
-      });
-      select.innerHTML = optionsHtml;
-    }
-
-    function onNameColChange(val) {
-      selectedNameColIndex = val === '' ? null : Number(val);
-      render();
-    }
-
-    // 同盟列選択ドロップダウンの更新
-    function updateAllianceColSelect() {
-      const container = document.getElementById('allianceColContainer');
-      const select = document.getElementById('allianceColSelect');
-      if (!select || !container) return;
-
-      if (!rawHeaders || rawHeaders.length <= 1) {
-        container.classList.add('hidden');
-        return;
-      }
-
-      container.classList.remove('hidden');
-      const autoIdx = findAllianceColumnIndex(rawHeaders);
-      const autoLabel = autoIdx >= 0 ? (rawHeaders[autoIdx] || ('列 ' + (autoIdx + 1))) : 'B列';
-
-      let optionsHtml = '<option value="">自動判定: ' + escapeHtml(autoLabel) + '</option>';
-      rawHeaders.forEach((h, idx) => {
-        const isSelected = selectedAllianceColIndex === idx ? ' selected' : '';
-        optionsHtml += '<option value="' + idx + '"' + isSelected + '>' + escapeHtml(h || ('列 ' + (idx + 1))) + '</option>';
-      });
-      select.innerHTML = optionsHtml;
-    }
-
-    function onAllianceColChange(val) {
-      selectedAllianceColIndex = val === '' ? null : Number(val);
-      render();
-    }
-
-    // プレイヤー名にも同盟名を付与するか切り替え
-    function toggleIncludeAlliance() {
-      includeAllianceWithPlayer = !includeAllianceWithPlayer;
-      const btn = document.getElementById('toggleIncludeAllianceBtn');
-      const text = document.getElementById('includeAllianceText');
-      if (btn && text) {
-        if (includeAllianceWithPlayer) {
-          btn.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs bg-blue-50 text-blue-900 border-blue-300 font-semibold shadow-2xs select-none cursor-pointer';
-          text.textContent = '✓ 全員に同盟名を付与';
-        } else {
-          btn.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 transition-colors select-none cursor-pointer';
-          text.textContent = '同盟名(B列)を連携中';
-        }
-      }
-      render();
-    }
-
-    // 表示切り替え（表 / カード）
-    function setViewMode(mode) {
-      currentViewMode = mode;
-      const tableBtn = document.getElementById('viewModeTableBtn');
-      const cardsBtn = document.getElementById('viewModeCardsBtn');
-      const tableView = document.getElementById('tableViewContainer');
-      const cardsView = document.getElementById('cardsViewContainer');
-
-      if (mode === 'cards') {
-        tableBtn.className = 'px-2.5 py-1 rounded-md text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors';
-        cardsBtn.className = 'px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-emerald-700 shadow-2xs transition-colors';
-        tableView.classList.add('hidden');
-        cardsView.classList.remove('hidden');
-      } else {
-        tableBtn.className = 'px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-emerald-700 shadow-2xs transition-colors';
-        cardsBtn.className = 'px-2.5 py-1 rounded-md text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors';
-        tableView.classList.remove('hidden');
-        cardsView.classList.add('hidden');
-      }
-      render();
-    }
-
-    // 検索・並べ替え済みの行を取得
-    function getProcessedRows() {
-      const query = (document.getElementById('searchInput').value || '').trim().toLowerCase();
-
-      let filtered = rawRows.filter(row => {
-        if (!query) return true;
-        return row.some(cell => String(cell).toLowerCase().includes(query));
-      });
-
-      if (currentSort.colIndex !== null && currentSort.direction !== null) {
-        const col = currentSort.colIndex;
-        const dir = currentSort.direction;
-
-        filtered.sort((a, b) => {
-          const valA = (a[col] || '').trim();
-          const valB = (b[col] || '').trim();
-
-          const numA = parseFloat(valA.replace(/[^0-9.-]+/g, ''));
-          const numB = parseFloat(valB.replace(/[^0-9.-]+/g, ''));
-          const isNum = !isNaN(numA) && !isNaN(numB) && /^[-+]?[¥$]?[0-9,]+(\.[0-9]+)?%?$/.test(valA);
-
-          if (isNum) {
-            return dir === 'asc' ? numA - numB : numB - numA;
-          }
-
-          const dateA = Date.parse(valA);
-          const dateB = Date.parse(valB);
-          if (!isNaN(dateA) && !isNaN(dateB) && /^[0-9]{4}[-/]/.test(valA)) {
-            return dir === 'asc' ? dateA - dateB : dateB - dateA;
-          }
-
-          const comp = valA.localeCompare(valB, 'ja', { numeric: true });
-          return dir === 'asc' ? comp : -comp;
-        });
-      }
-
-      return filtered;
-    }
-
-    // 全体描画
-    function render() {
-      const filtered = getProcessedRows();
-      document.getElementById('recordCount').textContent = filtered.length + ' / ' + rawRows.length + ' 件';
-
-      // 検索クリアボタンの制御
-      const hasQuery = Boolean(document.getElementById('searchInput').value.trim());
-      document.getElementById('clearSearchBtn').classList.toggle('hidden', !hasQuery);
-
-      // ソート表示バーの制御
-      const sortContainer = document.getElementById('sortStatusContainer');
-      if (currentSort.colIndex !== null && currentSort.direction !== null) {
-        sortContainer.classList.remove('hidden');
-        const colName = rawHeaders[currentSort.colIndex] || ('列 ' + (currentSort.colIndex + 1));
-        document.getElementById('sortStatusText').textContent = colName + ' (' + (currentSort.direction === 'asc' ? '昇順 ▲' : '降順 ▼') + ')';
-      } else {
-        sortContainer.classList.add('hidden');
-      }
-
-      if (currentViewMode === 'cards') {
-        renderCards(filtered);
-      } else {
-        renderTable(filtered);
-      }
-    }
-
-    // テーブル描画
-    function renderTable(filteredRows) {
-      const thead = document.getElementById('tableHead');
-      const tbody = document.getElementById('tableBody');
-      const visibleCols = getVisibleColumnIndices();
-      const coordIndices = getCoordColumnIndices();
-      const effectiveNameCol = getEffectiveNameColIndex();
-      const effectiveAllianceCol = getEffectiveAllianceColIndex();
-
-      let headHtml = '<tr>';
-      headHtml += '<th class="w-10 sm:w-12 px-2.5 sm:px-3 py-3 text-center text-slate-400 font-mono text-xs border-r border-slate-200">#</th>';
-      visibleCols.forEach((origIndex) => {
-        const header = rawHeaders[origIndex];
-        const isSorted = currentSort.colIndex === origIndex;
-        const isCoordCol = coordIndices.includes(origIndex);
-        const isNameCol = origIndex === effectiveNameCol;
-        const isAllianceCol = origIndex === effectiveAllianceCol;
-        const isPair1Name = pairedMode && origIndex === pair1NameCol;
-        const isPair2Name = pairedMode && origIndex === pair2NameCol;
-        const arrow = isSorted
-          ? (currentSort.direction === 'asc' ? '▲' : '▼')
-          : '<span class="text-slate-300">⇅</span>';
-
-        headHtml += `
-          <th
-            onclick="sortTable(${origIndex})"
-            class="px-3 sm:px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors whitespace-nowrap ${isSorted ? 'bg-emerald-50/80 text-emerald-900 border-b-2 border-emerald-600' : ''}"
-            title="クリックで並べ替え"
-          >
-            <div class="flex items-center justify-between gap-1.5">
-              <div class="flex items-center gap-1.5">
-                ${isPair1Name ? '<span class="text-[10px] font-sans font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200/60">📍B列 (+D列連携)</span>' : ''}
-                ${isPair2Name ? '<span class="text-[10px] font-sans font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 border border-blue-200/60">👤F列 (+G列連携)</span>' : ''}
-                ${!pairedMode && isNameCol ? '<span class="text-[10px] font-sans font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200/60">📍名前</span>' : ''}
-                ${!pairedMode && isAllianceCol && !isNameCol && !isCoordCol ? '<span class="text-[10px] font-sans font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 border border-blue-200/60">🛡️同盟(B列)</span>' : ''}
-                ${!pairedMode && isCoordCol && !isNameCol ? '<span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">座標</span>' : ''}
-                <span>${escapeHtml(header)}</span>
-              </div>
-              <span class="text-xs font-mono shrink-0">${arrow}</span>
-            </div>
-          </th>
-        `;
-      });
-      headHtml += '</tr>';
-      thead.innerHTML = headHtml;
-
-      if (filteredRows.length === 0) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="${visibleCols.length + 1}" class="py-10 text-center text-slate-400">
-              一致するデータが見つかりませんでした。
-            </td>
-          </tr>
-        `;
-        return;
-      }
-
-      let bodyHtml = '';
-      filteredRows.forEach((row, rIdx) => {
-        const bgClass = rIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60';
-
-        const pair1 = pairedMode && pair1NameCol < row.length
-          ? getPairedCopyInfo(row[pair1NameCol] || '', pair1CoordCol < row.length ? row[pair1CoordCol] || '' : '', excludeServer)
-          : null;
-
-        const pair2 = pairedMode && pair2NameCol < row.length
-          ? getPairedCopyInfo(row[pair2NameCol] || '', pair2CoordCol < row.length ? row[pair2CoordCol] || '' : '', excludeServer)
-          : null;
-
-        const rowCoordInfo = !pairedMode ? getRowNameAndCoordInfo(row, rawHeaders) : null;
-        const primaryName = rowCoordInfo
-          ? (rowCoordInfo.hasPlayerName ? rowCoordInfo.displayName : (rowCoordInfo.allianceName ? rowCoordInfo.allianceName + ' (通常座標)' : rowCoordInfo.coordText))
-          : (row[effectiveNameCol] || row[0] || '地点');
-        const copyTarget = rowCoordInfo ? rowCoordInfo.fullTextToCopy : primaryName;
-
-        bodyHtml += `<tr class="${bgClass} hover:bg-emerald-50/30 transition-colors">`;
-        bodyHtml += `<td class="px-2.5 sm:px-3 py-2.5 sm:py-3 text-center text-slate-400 font-mono text-xs border-r border-slate-100 whitespace-nowrap">${rIdx + 1}</td>`;
-
-        visibleCols.forEach((origIndex) => {
-          const val = row[origIndex] !== undefined ? row[origIndex] : '';
-          const header = rawHeaders[origIndex];
-
-          bodyHtml += '<td class="px-3 sm:px-4 py-2 sm:py-2.5 whitespace-nowrap text-slate-800">';
-
-          if (pairedMode && origIndex === pair1NameCol) {
-            if (pair1 && pair1.hasContent) {
-              bodyHtml += `
-                <button
-                  type="button"
-                  onclick="copyCoordinate('${escapeJs(pair1.copyText)}', '${escapeJs(pair1.displayName)}', event)"
-                  class="group inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-left bg-emerald-50/80 hover:bg-emerald-100 border-emerald-300 active:scale-[0.98] transition-all cursor-pointer max-w-full"
-                  title="タップして【${escapeHtml(pair1.copyText)}】をコピー (B列+D列)"
-                >
-                  <span class="text-emerald-600 shrink-0">📍</span>
-                  <div class="min-w-0">
-                    <div class="font-bold text-xs sm:text-sm truncate">${escapeHtml(pair1.displayName)}</div>
-                  </div>
-                  <span class="ml-auto inline-flex items-center text-[10px] bg-white text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded-md shrink-0 font-medium">
-                    B+Dコピー
-                  </span>
-                </button>
-              `;
-            } else {
-              bodyHtml += '<span class="text-slate-400">-</span>';
-            }
-          } else if (pairedMode && origIndex === pair2NameCol) {
-            if (pair2 && pair2.hasContent) {
-              bodyHtml += `
-                <button
-                  type="button"
-                  onclick="copyCoordinate('${escapeJs(pair2.copyText)}', '${escapeJs(pair2.displayName)}', event)"
-                  class="group inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-left bg-blue-50/80 hover:bg-blue-100 border-blue-300 active:scale-[0.98] transition-all cursor-pointer max-w-full"
-                  title="タップして【${escapeHtml(pair2.copyText)}】をコピー (F列+G列)"
-                >
-                  <span class="text-blue-600 shrink-0">👤</span>
-                  <div class="min-w-0">
-                    <div class="font-bold text-xs sm:text-sm truncate">${escapeHtml(pair2.displayName)}</div>
-                  </div>
-                  <span class="ml-auto inline-flex items-center text-[10px] bg-white text-blue-800 border border-blue-200 px-1.5 py-0.5 rounded-md shrink-0 font-medium">
-                    F+Gコピー
-                  </span>
-                </button>
-              `;
-            } else {
-              bodyHtml += '<span class="text-slate-400">-</span>';
-            }
-          } else if (pairedMode) {
-            bodyHtml += `<span class="select-text font-medium">${escapeHtml(val || '-')}</span>`;
-          } else {
-            const isCoord = isCoordinateCell(val, header);
-            const isNameCol = origIndex === effectiveNameCol;
-
-            if (isCoord) {
-              bodyHtml += `
-                <button
-                  type="button"
-                  onclick="copyCoordinate('${escapeJs(copyTarget)}', '${escapeJs(primaryName)}', event)"
-                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-mono text-xs bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100 active:scale-95 transition-all cursor-pointer min-h-[34px]"
-                  title="タップして【${escapeHtml(copyTarget)}】をコピー"
-                >
-                  <span class="text-emerald-600">📍</span>
-                  <span class="font-semibold">${escapeHtml(val)}</span>
-                  <span class="text-[10px] text-emerald-700 bg-white/80 px-1 py-0.5 rounded border border-emerald-200">コピー</span>
-                </button>
-              `;
-            } else if (isNameCol && rowCoordInfo && rowCoordInfo.hasPlayerName) {
-              const displayName = rowCoordInfo.displayName;
-              bodyHtml += `
-                <button
-                  type="button"
-                  onclick="copyCoordinate('${escapeJs(copyTarget)}', '${escapeJs(displayName)}', event)"
-                  class="group inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-left bg-emerald-50/50 hover:bg-emerald-100/70 border-emerald-200/80 active:scale-[0.98] transition-all cursor-pointer max-w-full"
-                  title="ポチッと押して【${escapeHtml(copyTarget)}】をコピー"
-                >
-                  <span class="text-emerald-600 shrink-0">📍</span>
-                  <div class="min-w-0">
-                    <div class="font-bold text-xs sm:text-sm truncate">${escapeHtml(displayName)}</div>
-                  </div>
-                  <span class="ml-auto inline-flex items-center text-[10px] bg-white text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded-md shrink-0 font-medium">
-                    コピー
-                  </span>
-                </button>
-              `;
-            } else {
-              let cellText = val;
-              if (rowCoordInfo && rowCoordInfo.isSingleCellMixed && rowCoordInfo.coordColIndex === origIndex) {
-                cellText = rowCoordInfo.displayName;
-              }
-              bodyHtml += `<span class="select-text">${escapeHtml(cellText || '-')}</span>`;
-            }
-          }
-
-          bodyHtml += '</td>';
-        });
-
-        bodyHtml += '</tr>';
-      });
-
-      tbody.innerHTML = bodyHtml;
-    }
-
-    // スマホ用カード描画
-    function renderCards(filteredRows) {
-      const container = document.getElementById('cardsViewContainer');
-      const coordIndices = getCoordColumnIndices();
-      const effectiveNameCol = getEffectiveNameColIndex();
-
-      if (filteredRows.length === 0) {
-        container.innerHTML = `
-          <div class="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-400">
-            一致するデータが見つかりませんでした。
-          </div>
-        `;
-        return;
-      }
-
-      let cardsHtml = '';
-      filteredRows.forEach((row, rIdx) => {
-        if (pairedMode) {
-          const pair1 = pair1NameCol < row.length
-            ? getPairedCopyInfo(row[pair1NameCol] || '', pair1CoordCol < row.length ? row[pair1CoordCol] || '' : '', excludeServer)
-            : null;
-
-          const pair2 = pair2NameCol < row.length
-            ? getPairedCopyInfo(row[pair2NameCol] || '', pair2CoordCol < row.length ? row[pair2CoordCol] || '' : '', excludeServer)
-            : null;
-
-          cardsHtml += `
-            <div class="bg-white rounded-xl border border-slate-200 p-3.5 shadow-2xs space-y-2.5">
-              <!-- 上部バー: 番号 + サーバー等 -->
-              <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
-                <div class="flex items-center gap-2">
-                  <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-500 font-mono text-[10px] flex items-center justify-center shrink-0">
-                    ${rIdx + 1}
-                  </span>
-                  <span class="font-bold text-slate-900 text-sm">
-                    ${escapeHtml(row[0] || ('行 #' + (rIdx + 1)))}
-                  </span>
-                </div>
-                ${row[0] ? `
-                  <span class="text-xs text-slate-600 shrink-0 font-medium bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                    ${escapeHtml(row[0])}
-                  </span>
-                ` : ''}
-              </div>
-
-              <!-- B列+D列 ボタン -->
-              ${pair1 && pair1.hasContent ? `
-                <button
-                  type="button"
-                  onclick="copyCoordinate('${escapeJs(pair1.copyText)}', '${escapeJs(pair1.displayName)}', event)"
-                  class="w-full flex items-center justify-between p-2.5 rounded-xl border text-xs bg-emerald-50/80 hover:bg-emerald-100 text-emerald-950 border-emerald-300 active:scale-[0.98] transition-all min-h-[44px] cursor-pointer"
-                  title="タップして【${escapeHtml(pair1.copyText)}】をコピー (B列+D列)"
-                >
-                  <div class="flex items-center gap-1.5 min-w-0">
-                    <span class="text-emerald-600">📍</span>
-                    <span class="font-semibold text-slate-500 shrink-0">${escapeHtml(rawHeaders[pair1NameCol] || 'B列')}:</span>
-                    <span class="font-bold truncate text-sm">${escapeHtml(pair1.displayName)}</span>
-                  </div>
-                  <span class="text-[11px] font-sans font-semibold bg-white text-emerald-800 border border-emerald-200 px-2 py-1 rounded-md shrink-0">
-                    B+Dコピー
-                  </span>
-                </button>
-              ` : ''}
-
-              <!-- F列+G列 ボタン -->
-              ${pair2 && pair2.hasContent ? `
-                <button
-                  type="button"
-                  onclick="copyCoordinate('${escapeJs(pair2.copyText)}', '${escapeJs(pair2.displayName)}', event)"
-                  class="w-full flex items-center justify-between p-2.5 rounded-xl border text-xs bg-blue-50/80 hover:bg-blue-100 text-blue-950 border-blue-300 active:scale-[0.98] transition-all min-h-[44px] cursor-pointer"
-                  title="タップして【${escapeHtml(pair2.copyText)}】をコピー (F列+G列)"
-                >
-                  <div class="flex items-center gap-1.5 min-w-0">
-                    <span class="text-blue-600">👤</span>
-                    <span class="font-semibold text-slate-500 shrink-0">${escapeHtml(rawHeaders[pair2NameCol] || 'F列')}:</span>
-                    <span class="font-bold truncate text-sm">${escapeHtml(pair2.displayName)}</span>
-                  </div>
-                  <span class="text-[11px] font-sans font-semibold bg-white text-blue-800 border border-blue-200 px-2 py-1 rounded-md shrink-0">
-                    F+Gコピー
-                  </span>
-                </button>
-              ` : ''}
-
-              <!-- その他の項目 -->
-              <div class="grid grid-cols-2 gap-1.5 text-xs pt-0.5">
-                ${rawHeaders.map((header, cIdx) => {
-                  if (cIdx === pair1NameCol || cIdx === pair1CoordCol || cIdx === pair2NameCol || cIdx === pair2CoordCol || cIdx === 0) return '';
-                  const val = row[cIdx] || '';
-                  if (!val) return '';
-                  return `
-                    <div class="bg-slate-50 p-2 rounded-lg border border-slate-100">
-                      <div class="text-[10px] text-slate-400 font-medium truncate">${escapeHtml(header)}</div>
-                      <div class="text-slate-800 font-medium mt-0.5 truncate">${escapeHtml(val)}</div>
-                    </div>
-                  `;
-                }).join('')}
-              </div>
-            </div>
-          `;
-          return;
-        }
-
-        const rowCoordInfo = getRowNameAndCoordInfo(row, rawHeaders);
-        const primaryName = rowCoordInfo
-          ? (rowCoordInfo.hasPlayerName ? rowCoordInfo.displayName : (rowCoordInfo.allianceName ? rowCoordInfo.allianceName + ' (通常座標)' : rowCoordInfo.coordText))
-          : (row[effectiveNameCol] || row[0] || '地点');
-        const copyTarget = rowCoordInfo ? rowCoordInfo.fullTextToCopy : primaryName;
-
-        // 同盟またはサーバー番号などのバッジ表示
-        let secondaryBadge = '';
-        if (rowCoordInfo && rowCoordInfo.allianceName) {
-          secondaryBadge = `<span class="text-xs text-blue-800 shrink-0 font-semibold bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">${escapeHtml(rowCoordInfo.allianceName)}</span>`;
-        } else if (effectiveNameCol !== 0 && row[0]) {
-          secondaryBadge = `<span class="text-xs text-slate-600 shrink-0 font-medium bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">${escapeHtml(row[0])}</span>`;
-        } else if (rawHeaders.length > 1 && row[1] && effectiveNameCol !== 1) {
-          secondaryBadge = `<span class="text-xs text-slate-600 shrink-0 font-medium bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">${escapeHtml(row[1])}</span>`;
-        }
-
-        cardsHtml += `
-          <div class="bg-white rounded-xl border border-slate-200 p-3.5 shadow-2xs space-y-2.5">
-            <!-- タイトル行 (表示は名前のみ！タップで【名前＋座標】コピー可能) -->
-            <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
-              <div class="flex items-center gap-2 min-w-0 flex-1">
-                <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-500 font-mono text-[10px] flex items-center justify-center shrink-0">
-                  ${rIdx + 1}
-                </span>
-                ${rowCoordInfo ? `
-                  <button
-                    type="button"
-                    onclick="copyCoordinate('${escapeJs(copyTarget)}', '${escapeJs(primaryName)}', event)"
-                    class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border font-bold text-sm text-left truncate bg-emerald-50/60 hover:bg-emerald-100 text-emerald-950 border-emerald-200 active:scale-[0.98] transition-all cursor-pointer"
-                    title="名前をタップして【${escapeHtml(copyTarget)}】をコピー"
-                  >
-                    <span class="text-emerald-600 shrink-0">📍</span>
-                    <span class="truncate">${escapeHtml(primaryName)}</span>
-                    <span class="text-[10px] ml-1 opacity-75 font-normal shrink-0">ポチッとコピー</span>
-                  </button>
-                ` : `
-                  <span class="font-bold text-slate-900 text-sm truncate">${escapeHtml(primaryName)}</span>
-                `}
-              </div>
-              ${secondaryBadge}
-            </div>
-
-            <!-- 座標タップコピーボタン（別列の座標列を表示している場合のみ） -->
-            ${(!hideCoordColumn && rowCoordInfo && !rowCoordInfo.isSingleCellMixed && coordIndices.length > 0) ? `
-              <div class="space-y-1.5">
-                ${coordIndices.map(cIdx => `
-                  <button
-                    type="button"
-                    onclick="copyCoordinate('${escapeJs(copyTarget)}', '${escapeJs(primaryName)}', event)"
-                    class="w-full flex items-center justify-between p-2.5 rounded-xl border font-mono text-xs bg-emerald-50 text-emerald-900 border-emerald-300 active:scale-[0.98] transition-all min-h-[44px] cursor-pointer"
-                    title="タップして【${escapeHtml(copyTarget)}】をコピー"
-                  >
-                    <div class="flex items-center gap-1.5 min-w-0">
-                      <span>📍</span>
-                      <span class="font-semibold truncate">${escapeHtml(rawHeaders[cIdx])}:</span>
-                      <span class="font-bold tracking-tight">${escapeHtml(row[cIdx] || '')}</span>
-                    </div>
-                    <span class="text-[11px] font-sans font-semibold bg-white text-emerald-800 border border-emerald-200 px-2 py-1 rounded-md shrink-0">
-                      名前+座標コピー
-                    </span>
-                  </button>
-                `).join('')}
-              </div>
-            ` : ''}
-
-            <!-- その他の項目 -->
-            <div class="grid grid-cols-2 gap-1.5 text-xs pt-0.5">
-              ${rawHeaders.map((header, cIdx) => {
-                if (cIdx === effectiveNameCol || coordIndices.includes(cIdx)) return '';
-                const val = row[cIdx] || '';
-                if (!val) return '';
-                return `
-                  <div class="bg-slate-50 p-2 rounded-lg border border-slate-100">
-                    <div class="text-[10px] text-slate-400 font-medium truncate">${escapeHtml(header)}</div>
-                    <div class="text-slate-800 font-medium mt-0.5 truncate">${escapeHtml(val)}</div>
-                  </div>
-                `;
-              }).join('')}
-            </div>
-          </div>
-        `;
-      });
-
-      container.innerHTML = cardsHtml;
-    }
-
-    function sortTable(colIndex) {
-      if (currentSort.colIndex === colIndex) {
-        if (currentSort.direction === 'asc') {
-          currentSort.direction = 'desc';
-        } else if (currentSort.direction === 'desc') {
-          currentSort.colIndex = null;
-          currentSort.direction = null;
-        }
-      } else {
-        currentSort.colIndex = colIndex;
-        currentSort.direction = 'asc';
-      }
-      render();
-    }
-
-    function resetSort() {
-      currentSort = { colIndex: null, direction: null };
-      render();
-    }
-
-    function onSearchInput() {
-      render();
-    }
-
-    function clearSearch() {
-      document.getElementById('searchInput').value = '';
-      render();
-    }
-
-    function showStatus(text, type) {
-      const msg = document.getElementById('statusMessage');
-      if (!msg) return;
-      msg.textContent = text;
-      msg.className = 'mb-3 p-3 rounded-xl text-xs sm:text-sm ' + (
-        type === 'error'
-          ? 'bg-rose-50 text-rose-700 border-rose-200'
-          : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-      );
-      msg.classList.remove('hidden');
-    }
-
-    function hideStatus() {
-      const msg = document.getElementById('statusMessage');
-      if (msg) msg.classList.add('hidden');
-    }
-
-    function escapeHtml(str) {
-      return String(str || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
-
-    function escapeJs(str) {
-      return String(str || '')
-        .replace(/\\/g, '\\\\')
-        .replace(/'/g, "\\'")
-        .replace(/"/g, '&quot;')
-        .replace(/\n/g, ' ');
-    }
-
-    // 初回実行
-    window.addEventListener('DOMContentLoaded', () => {
-      // 初期ボタンスタイル
-      setViewMode(currentViewMode);
-      fetchSheetData();
-    });
-  </script>
-</body>
-</html>
+  }
+
+  const negativeKeywords = [
+    'サーバー',
+    'server',
+    's#',
+    '鯖',
+    '国',
+    '王国',
+    'realm',
+    'king
