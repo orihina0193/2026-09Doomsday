@@ -170,13 +170,8 @@
     let rawHeaders = [];
     let rawRows = [];
     let currentSort = { colIndex: null, direction: null };
-    let currentViewMode = 'table';
+    let currentViewMode = 'table'; // スマホも含め、全端末で「表（テーブル）」表示がデフォルト
     let toastTimeout = null;
-
-    // 画面幅がスマホサイズ（640px未満）なら初期表示をカードモードに自動適応
-    if (window.innerWidth < 640) {
-      currentViewMode = 'cards';
-    }
 
     // 通常座標かどうかの判定（一般の価格、個数、日付、IDなどは除外）
     function isCoordinateCell(val, headerName = '') {
