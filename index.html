@@ -314,13 +314,13 @@
       const colIdx = explicitCol >= 0 ? explicitCol : getEffectiveAllianceColIndex();
       if (colIdx >= 0 && colIdx < row.length) {
         const val = (row[colIdx] || '').trim();
-        if (val && !isCoordinateCell(val, headers[colIdx] || '') && !/^[SsKk]?:?s*d+$/.test(val)) {
+        if (val && !isCoordinateCell(val, headers[colIdx] || '') && !/^[SsKk]?:?\s*\d+$/.test(val)) {
           return val;
         }
       }
       if (colIdx !== 1 && row.length > 1) {
         const val = (row[1] || '').trim();
-        if (val && !isCoordinateCell(val, headers[1] || '') && !/^[SsKk]?:?s*d+$/.test(val)) {
+        if (val && !isCoordinateCell(val, headers[1] || '') && !/^[SsKk]?:?\s*\d+$/.test(val)) {
           return val;
         }
       }
@@ -331,7 +331,7 @@
     function stripServerFromCoord(coord) {
       if (!coord) return '';
       return coord
-        .replace(/^([SsKk#]|(?:鯖|サーバー):?)s*d+[s,]+/i, '')
+        .replace(/^([SsKk#]|(?:鯖|サーバー):?)\s*\d+[\s,]+/i, '')
         .trim();
     }
 
@@ -373,7 +373,7 @@
           if (sampleVals.length === 0) continue;
 
           // サーバー番号っぽい値 (例: 511, S:511, S511)
-          const mostlyServers = sampleVals.every(v => /^[SsKk]?:?s*d+$/.test(v));
+          const mostlyServers = sampleVals.every(v => /^[SsKk]?:?\s*\d+$/.test(v));
           if (mostlyServers) continue;
 
           // 座標っぽい値
@@ -381,7 +381,7 @@
           if (mostlyCoords) continue;
 
           // 単なる1〜4桁の数値（IDや連番）
-          const mostlySmallNumbers = sampleVals.every(v => /^d{1,4}$/.test(v));
+          const mostlySmallNumbers = sampleVals.every(v => /^\d{1,4}$/.test(v));
           if (mostlySmallNumbers) continue;
         }
 
@@ -450,7 +450,7 @@
       if (!trimmed) return null;
 
       // 日付や単純IDは除外
-      if (/^d{4}[-/.]d{1,2}[-/.]d{1,2}/.test(trimmed)) return null;
+      if (/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}/.test(trimmed)) return null;
       if (/^[A-Za-z0-9]+-[A-Za-z0-9-]+$/.test(trimmed) && !trimmed.toLowerCase().includes('x')) return null;
 
       if (isCoordinateCell(trimmed)) {
@@ -458,7 +458,7 @@
       }
 
       // ゲーム座標パターン: S:511 X:240 Y:538 または X:240 Y:538
-      const gameMatch = trimmed.match(/((?:[SsKk]:?s*d+[s,]+)?[Xx]:?s*[-+]?d+(?:.d+)?[s,]+[Yy]:?s*[-+]?d+(?:.d+)?)/i);
+      const gameMatch = trimmed.match(/((?:[SsKk]:?\s*\d+[\s,]+)?[Xx]:?\s*[-+]?\d+(?:\.\d+)?[\s,]+[Yy]:?\s*[-+]?\d+(?:\.\d+)?)/i);
       if (gameMatch) {
         const coord = gameMatch[1].trim();
         const name = trimmed.replace(gameMatch[0], '').trim();
@@ -466,7 +466,7 @@
       }
 
       // 緯度経度パターン: 35.6586, 139.7454
-      const latLngMatch = trimmed.match(/([-+]?d{1,3}.d{3,}s*,s*[-+]?d{1,3}.d{3,})/);
+      const latLngMatch = trimmed.match(/([-+]?\d{1,3}\.\d{3,}\s*,\s*[-+]?\d{1,3}\.\d{3,})/);
       if (latLngMatch) {
         const coord = latLngMatch[1].trim();
         const name = trimmed.replace(latLngMatch[0], '').trim();
@@ -693,7 +693,6 @@
         await navigator.clipboard.writeText(clean);
         showToast(clean, label);
       } catch (err) {
-        // フォールバック（古いブラウザやパーミッション対策）
         const textArea = document.createElement('textarea');
         textArea.value = clean;
         document.body.appendChild(textArea);
@@ -964,8 +963,8 @@
           >
             <div class="flex items-center justify-between gap-1.5">
               <div class="flex items-center gap-1.5">
-                ${isPair1Name ? '<span class="text-[10px] font-sans font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200/60">📍B列 (+D列連携)</span>' : ''}
-                ${isPair2Name ? '<span class="text-[10px] font-sans font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 border border-blue-200/60">👤F列 (+G列連携)</span>' : ''}
+                ${isPair1Name ? '<span class="text-emerald-600 text-xs">📍</span>' : ''}
+                ${isPair2Name ? '<span class="text-blue-600 text-xs">👤</span>' : ''}
                 ${!pairedMode && isNameCol ? '<span class="text-[10px] font-sans font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200/60">📍名前</span>' : ''}
                 ${!pairedMode && isAllianceCol && !isNameCol && !isCoordCol ? '<span class="text-[10px] font-sans font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 border border-blue-200/60">🛡️同盟(B列)</span>' : ''}
                 ${!pairedMode && isCoordCol && !isNameCol ? '<span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">座標</span>' : ''}
@@ -1024,15 +1023,12 @@
                   type="button"
                   onclick="copyCoordinate('${escapeJs(pair1.copyText)}', '${escapeJs(pair1.displayName)}', event)"
                   class="group inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-left bg-emerald-50/80 hover:bg-emerald-100 border-emerald-300 active:scale-[0.98] transition-all cursor-pointer max-w-full"
-                  title="タップして【${escapeHtml(pair1.copyText)}】をコピー (B列+D列)"
+                  title="タップして【${escapeHtml(pair1.copyText)}】をコピー"
                 >
                   <span class="text-emerald-600 shrink-0">📍</span>
                   <div class="min-w-0">
                     <div class="font-bold text-xs sm:text-sm truncate">${escapeHtml(pair1.displayName)}</div>
                   </div>
-                  <span class="ml-auto inline-flex items-center text-[10px] bg-white text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded-md shrink-0 font-medium">
-                    B+Dコピー
-                  </span>
                 </button>
               `;
             } else {
@@ -1045,15 +1041,12 @@
                   type="button"
                   onclick="copyCoordinate('${escapeJs(pair2.copyText)}', '${escapeJs(pair2.displayName)}', event)"
                   class="group inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-left bg-blue-50/80 hover:bg-blue-100 border-blue-300 active:scale-[0.98] transition-all cursor-pointer max-w-full"
-                  title="タップして【${escapeHtml(pair2.copyText)}】をコピー (F列+G列)"
+                  title="タップして【${escapeHtml(pair2.copyText)}】をコピー"
                 >
                   <span class="text-blue-600 shrink-0">👤</span>
                   <div class="min-w-0">
                     <div class="font-bold text-xs sm:text-sm truncate">${escapeHtml(pair2.displayName)}</div>
                   </div>
-                  <span class="ml-auto inline-flex items-center text-[10px] bg-white text-blue-800 border border-blue-200 px-1.5 py-0.5 rounded-md shrink-0 font-medium">
-                    F+Gコピー
-                  </span>
                 </button>
               `;
             } else {
@@ -1165,16 +1158,13 @@
                   type="button"
                   onclick="copyCoordinate('${escapeJs(pair1.copyText)}', '${escapeJs(pair1.displayName)}', event)"
                   class="w-full flex items-center justify-between p-2.5 rounded-xl border text-xs bg-emerald-50/80 hover:bg-emerald-100 text-emerald-950 border-emerald-300 active:scale-[0.98] transition-all min-h-[44px] cursor-pointer"
-                  title="タップして【${escapeHtml(pair1.copyText)}】をコピー (B列+D列)"
+                  title="タップして【${escapeHtml(pair1.copyText)}】をコピー"
                 >
                   <div class="flex items-center gap-1.5 min-w-0">
                     <span class="text-emerald-600">📍</span>
                     <span class="font-semibold text-slate-500 shrink-0">${escapeHtml(rawHeaders[pair1NameCol] || 'B列')}:</span>
                     <span class="font-bold truncate text-sm">${escapeHtml(pair1.displayName)}</span>
                   </div>
-                  <span class="text-[11px] font-sans font-semibold bg-white text-emerald-800 border border-emerald-200 px-2 py-1 rounded-md shrink-0">
-                    B+Dコピー
-                  </span>
                 </button>
               ` : ''}
 
@@ -1184,16 +1174,13 @@
                   type="button"
                   onclick="copyCoordinate('${escapeJs(pair2.copyText)}', '${escapeJs(pair2.displayName)}', event)"
                   class="w-full flex items-center justify-between p-2.5 rounded-xl border text-xs bg-blue-50/80 hover:bg-blue-100 text-blue-950 border-blue-300 active:scale-[0.98] transition-all min-h-[44px] cursor-pointer"
-                  title="タップして【${escapeHtml(pair2.copyText)}】をコピー (F列+G列)"
+                  title="タップして【${escapeHtml(pair2.copyText)}】をコピー"
                 >
                   <div class="flex items-center gap-1.5 min-w-0">
                     <span class="text-blue-600">👤</span>
                     <span class="font-semibold text-slate-500 shrink-0">${escapeHtml(rawHeaders[pair2NameCol] || 'F列')}:</span>
                     <span class="font-bold truncate text-sm">${escapeHtml(pair2.displayName)}</span>
                   </div>
-                  <span class="text-[11px] font-sans font-semibold bg-white text-blue-800 border border-blue-200 px-2 py-1 rounded-md shrink-0">
-                    F+Gコピー
-                  </span>
                 </button>
               ` : ''}
 
@@ -1222,7 +1209,6 @@
           : (row[effectiveNameCol] || row[0] || '地点');
         const copyTarget = rowCoordInfo ? rowCoordInfo.fullTextToCopy : primaryName;
 
-        // 同盟またはサーバー番号などのバッジ表示
         let secondaryBadge = '';
         if (rowCoordInfo && rowCoordInfo.allianceName) {
           secondaryBadge = `<span class="text-xs text-blue-800 shrink-0 font-semibold bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">${escapeHtml(rowCoordInfo.allianceName)}</span>`;
@@ -1367,7 +1353,6 @@
 
     // 初回実行
     window.addEventListener('DOMContentLoaded', () => {
-      // 初期ボタンスタイル
       setViewMode(currentViewMode);
       fetchSheetData();
     });
