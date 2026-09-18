@@ -1,354 +1,411 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<title>同盟座標検索</title>
-
-https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.jsscript>
-
-<style>
-*{
-    box-sizing:border-box;
-}
-
-body{
-    margin:0;
-    padding:15px;
-    background:#f5f7fa;
-    font-family:-apple-system,BlinkMacSystemFont,sans-serif;
-}
-
-h1{
-    text-align:center;
-    margin-bottom:15px;
-}
-
-.controls{
-    display:flex;
-    flex-direction:column;
-    gap:10px;
-    margin-bottom:15px;
-}
-
-input, select{
-    width:100%;
-    padding:12px;
-    border:1px solid #ccc;
-    border-radius:10px;
-    font-size:16px;
-}
-
-.stats{
-    color:#666;
-    margin-bottom:15px;
-}
-
-.card{
-    background:#fff;
-    border-radius:14px;
-    padding:15px;
-    margin-bottom:12px;
-    box-shadow:0 2px 6px rgba(0,0,0,.08);
-}
-
-.top{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-}
-
-.alliance{
-    font-size:22px;
-    font-weight:bold;
-}
-
-.server{
-    color:#555;
-}
-
-.power{
-    margin-top:8px;
-}
-
-.area{
-    margin-top:5px;
-    color:#666;
-}
-
-.coord{
-    margin-top:12px;
-    background:#e8f2ff;
-    border-radius:10px;
-    padding:12px;
-    text-align:center;
-    color:#0057d8;
-    font-weight:bold;
-    cursor:pointer;
-}
-
-.toast{
-    display:none;
-    position:fixed;
-    bottom:20px;
-    left:50%;
-    transform:translateX(-50%);
-    background:#222;
-    color:#fff;
-    padding:12px 18px;
-    border-radius:30px;
-}
-
-.error{
-    color:red;
-    font-weight:bold;
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>スプレッドシート データ一覧</title>
+  <!-- Tailwind CSS CDN（ビルド不要で単一HTMLで完結） -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              500: '#16a34a',
+              600: '#15803d',
+              700: '#166534',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* テーブルの横スクロールバーのスタイル */
+    .table-container::-webkit-scrollbar {
+      height: 8px;
+    }
+    .table-container::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    .table-container::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+  </style>
 </head>
-<body>
+<body class="bg-slate-50 text-slate-800 min-h-screen font-sans antialiased">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    
+    <!-- ヘッダーエリア -->
+    <header class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 pb-5">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+          <span class="inline-block w-2.5 h-6 bg-emerald-600 rounded-sm"></span>
+          スプレッドシート データ一覧
+        </h1>
+        <p class="text-sm text-slate-500 mt-1">
+          Googleスプレッドシートの最新データを自動反映・並べ替え
+        </p>
+      </div>
 
-<h1>同盟座標検索</h1>
+      <!-- コントロールボタン群 -->
+      <div class="flex flex-wrap items-center gap-2">
+        <span id="lastUpdated" class="text-xs text-slate-500 font-mono bg-white px-2.5 py-1.5 rounded border border-slate-200 shadow-sm">
+          未取得
+        </span>
+        <button
+          id="refreshBtn"
+          onclick="fetchSheetData()"
+          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-lg border border-slate-200 shadow-sm transition-colors active:scale-95"
+          title="最新のデータを取得"
+        >
+          <svg id="refreshIcon" class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          今すぐ更新
+        </button>
+      </div>
+    </header>
 
-<div class="controls">
+    <!-- 検索バーと件数表示 -->
+    <div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
+      <div class="relative flex-1 max-w-md">
+        <input
+          type="text"
+          id="searchInput"
+          oninput="onSearchInput()"
+          placeholder="表全体を検索（単語入力で絞り込み）..."
+          class="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
+        />
+        <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      </div>
 
-<input
-id="search"
-type="text"
-placeholder="同盟名・サーバー・座標検索">
+      <div class="flex items-center gap-3 text-xs text-slate-500">
+        <span id="recordCount" class="font-medium text-slate-700">0 件</span>
+        <span class="text-slate-300">|</span>
+        <label class="inline-flex items-center gap-1.5 cursor-pointer">
+          <input type="checkbox" id="autoRefreshCheck" onchange="toggleAutoRefresh()" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+          <span>1分ごとに自動更新</span>
+        </label>
+      </div>
+    </div>
 
-<select id="areaFilter">
-<option value="">全エリア</option>
-</select>
+    <!-- 読込中 / エラー通知メッセージ -->
+    <div id="statusMessage" class="hidden mb-4 p-4 rounded-xl text-sm border"></div>
 
-<select id="sort">
-<option value="">並び替えなし</option>
-<option value="power">戦力順（高→低）</option>
-<option value="server">サーバー順</option>
-</select>
+    <!-- テーブル表示エリア -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="table-container overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-200 text-sm text-left">
+          <thead id="tableHead" class="bg-slate-50 text-xs font-semibold text-slate-600 uppercase tracking-wider select-none">
+            <!-- JavaScriptで動的生成 -->
+          </thead>
+          <tbody id="tableBody" class="divide-y divide-slate-100 bg-white">
+            <!-- JavaScriptで動的生成 -->
+            <tr>
+              <td colspan="10" class="py-12 text-center text-slate-400">
+                データを読み込んでいます...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
-</div>
+    <!-- フッター -->
+    <footer class="mt-8 text-center text-xs text-slate-400">
+      <p>列の見出しをクリックすると「昇順 / 降順」に並べ替えができます。</p>
+    </footer>
 
-<div class="stats" id="stats"></div>
+  </div>
 
-<div id="results"></div>
+  <!-- スクリプト: スプレッドシート連携と並べ替え・検索 -->
+  <script>
+    /**
+     * 【設定】GoogleスプレッドシートのCSV URL
+     * 手順: スプレッドシートで「ファイル」→「共有」→「ウェブに公開」→「カンマ区切り値(.csv)」を選んで公開し、
+     * 生成されたURLを下記の SHEET_CSV_URL に貼り付けてください。
+     */
+    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRnJkX_QsjmxeZMsepepY1VR7eB9eSwaPhnA35iN6rwFxyqDebC_k-ABZZB8VxKM4J9mQGty7phZdEu/pub?output=csv";
 
-<div id="toast" class="toast"></div>
+    // 内部データ保持用
+    let rawHeaders = [];
+    let rawRows = [];
+    let currentSort = { colIndex: null, direction: null }; // 'asc' | 'desc'
+    let autoRefreshTimer = null;
 
-<script>
+    /**
+     * CSV文字列をパースする関数（引用符、改行、カンマに対応）
+     */
+    function parseCSV(text) {
+      const rows = [];
+      let currentRow = [];
+      let currentVal = '';
+      let inQuotes = false;
 
-const CSV_URL =
-"https://docs.google.com/spreadsheets/d/e/2PACX-1vRnJkX_QsjmxeZMsepepY1VR7eB9eSwaPhnA35iN6rwFxyqDebC_k-ABZZB8VxKM4J9mQGty7phZdEu/pub?output=csv";
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
 
-let allData = [];
+        if (char === '"') {
+          if (inQuotes && nextChar === '"') {
+            currentVal += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ',' && !inQuotes) {
+          currentRow.push(currentVal.trim());
+          currentVal = '';
+        } else if ((char === '\r' || char === '\n') && !inQuotes) {
+          if (char === '\r' && nextChar === '\n') i++;
+          currentRow.push(currentVal.trim());
+          if (currentRow.some(c => c.length > 0)) rows.push(currentRow);
+          currentRow = [];
+          currentVal = '';
+        } else {
+          currentVal += char;
+        }
+      }
+      if (currentVal.length > 0 || currentRow.length > 0) {
+        currentRow.push(currentVal.trim());
+        if (currentRow.some(c => c.length > 0)) rows.push(currentRow);
+      }
+      return rows;
+    }
 
-function loadData(){
+    /**
+     * スプレッドシートの最新データを取得（キャッシュ回避のパラメータ付き）
+     */
+    async function fetchSheetData() {
+      const refreshIcon = document.getElementById('refreshIcon');
+      if (refreshIcon) refreshIcon.classList.add('animate-spin');
 
-    Papa.parse(CSV_URL, {
+      showStatus('データを読み込み中...', 'info');
 
-        download: true,
-        header: true,
-
-        complete: function(results){
-
-            allData = results.data
-            .filter(row => row["同盟"])
-            .map(row => ({
-
-                server : row["サーバー"] || "",
-                alliance : row["同盟"] || "",
-                power : row["同盟戦力"] || "",
-                coord : row["通常座標"] || "",
-                map : row["マップ"] || "",
-                area : row["小エリア"] || ""
-
-            }));
-
-            fillAreaFilter();
-            applyFilters();
-        },
-
-        error: function(err){
-
-            document.getElementById("results").innerHTML =
-            "<div class='error'>データ読込エラー</div>";
-
-            console.error(err);
+      try {
+        if (!SHEET_CSV_URL || SHEET_CSV_URL.includes('XXXXXXXXXXXXX')) {
+          throw new Error('スプレッドシートのURLが未設定です。HTML内の SHEET_CSV_URL を設定してください。');
         }
 
-    });
-}
+        // キャッシュを防ぎ最新データを確実に取得するためにタイムスタンプを付与
+        const cacheBustUrl = SHEET_CSV_URL + (SHEET_CSV_URL.includes('?') ? '&' : '?') + '_t=' + Date.now();
+        const response = await fetch(cacheBustUrl);
 
-function fillAreaFilter(){
+        if (!response.ok) {
+          throw new Error('データの取得に失敗しました (HTTP ' + response.status + ')。スプレッドシートが「ウェブに公開」されているか確認してください。');
+        }
 
-    const select =
-    document.getElementById("areaFilter");
+        const csvText = await response.text();
+        const parsedData = parseCSV(csvText);
 
-    select.innerHTML =
-    '<option value="">全エリア</option>';
+        if (parsedData.length === 0) {
+          throw new Error('スプレッドシートにデータが見つかりませんでした。');
+        }
 
-    const areas =
-    [...new Set(allData.map(x => x.area))]
-    .filter(Boolean)
-    .sort();
+        rawHeaders = parsedData[0];
+        rawRows = parsedData.slice(1);
 
-    areas.forEach(area => {
+        // 最終更新時刻の更新
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        document.getElementById('lastUpdated').textContent = '最終更新: ' + timeStr;
 
-        const option =
-        document.createElement("option");
+        hideStatus();
+        renderTable();
 
-        option.value = area;
-        option.textContent = area;
-
-        select.appendChild(option);
-    });
-}
-
-function render(list){
-
-    const results =
-    document.getElementById("results");
-
-    document.getElementById("stats").textContent =
-    list.length + " 件表示";
-
-    if(list.length === 0){
-
-        results.innerHTML =
-        "<div class='card'>該当データなし</div>";
-
-        return;
+      } catch (err) {
+        console.error(err);
+        showStatus('エラー: ' + err.message, 'error');
+        document.getElementById('tableBody').innerHTML = `
+          <tr>
+            <td colspan="10" class="py-8 text-center text-red-500 font-medium">
+              データの取得に失敗しました。<br>
+              <span class="text-xs text-slate-500">スプレッドシートで「ファイル」→「共有」→「ウェブに公開」を行っているかご確認ください。</span>
+            </td>
+          </tr>
+        `;
+      } finally {
+        if (refreshIcon) refreshIcon.classList.remove('animate-spin');
+      }
     }
 
-    results.innerHTML = list.map(item => `
+    /**
+     * テーブルの描画（ヘッダー・並べ替え・検索フィルター適用）
+     */
+    function renderTable() {
+      const thead = document.getElementById('tableHead');
+      const tbody = document.getElementById('tableBody');
+      const searchQuery = (document.getElementById('searchInput').value || '').trim().toLowerCase();
 
-        <div class="card">
+      // ヘッダーの生成
+      let headHtml = '<tr>';
+      rawHeaders.forEach((header, index) => {
+        const isSorted = currentSort.colIndex === index;
+        const arrow = isSorted
+          ? (currentSort.direction === 'asc' ? '▲' : '▼')
+          : '<span class="text-slate-300 group-hover:text-slate-500">⇅</span>';
 
-            <div class="top">
-                <div class="alliance">
-                    ${item.alliance}
-                </div>
-
-                <div class="server">
-                    S${item.server}
-                </div>
+        headHtml += `
+          <th
+            onclick="sortTable(${index})"
+            class="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors group whitespace-nowrap ${isSorted ? 'bg-emerald-50/70 text-emerald-800' : ''}"
+            title="クリックで並べ替え"
+          >
+            <div class="flex items-center gap-1.5">
+              <span>${escapeHtml(header)}</span>
+              <span class="text-xs font-mono">${arrow}</span>
             </div>
+          </th>
+        `;
+      });
+      headHtml += '</tr>';
+      thead.innerHTML = headHtml;
 
-            <div class="power">
-                戦力 : ${item.power}
-            </div>
+      // 行のフィルタリング（検索）
+      let filteredRows = rawRows.filter(row => {
+        if (!searchQuery) return true;
+        return row.some(cell => String(cell).toLowerCase().includes(searchQuery));
+      });
 
-            <div class="area">
-                ${item.area}
-            </div>
+      // 並べ替え
+      if (currentSort.colIndex !== null && currentSort.direction !== null) {
+        const col = currentSort.colIndex;
+        const dir = currentSort.direction;
 
-            <div
-                class="coord"
-                onclick="copyCoord('${item.coord}')"
-            >
-                ${item.coord}
-            </div>
+        filteredRows.sort((a, b) => {
+          const valA = (a[col] || '').trim();
+          const valB = (b[col] || '').trim();
 
-        </div>
+          // 数値（円マークやカンマ等に対応）
+          const numA = parseFloat(valA.replace(/[^0-9.-]+/g, ''));
+          const numB = parseFloat(valB.replace(/[^0-9.-]+/g, ''));
+          const isNum = !isNaN(numA) && !isNaN(numB) && /^[-+]?[¥$]?[0-9,]+(\.[0-9]+)?%?$/.test(valA);
 
-    `).join("");
-}
+          if (isNum) {
+            return dir === 'asc' ? numA - numB : numB - numA;
+          }
 
-function copyCoord(coord){
+          // 日付
+          const dateA = Date.parse(valA);
+          const dateB = Date.parse(valB);
+          if (!isNaN(dateA) && !isNaN(dateB) && /^[0-9]{4}[-/]/.test(valA)) {
+            return dir === 'asc' ? dateA - dateB : dateB - dateA;
+          }
 
-    navigator.clipboard.writeText(coord);
-
-    const toast =
-    document.getElementById("toast");
-
-    toast.textContent =
-    "座標をコピーしました";
-
-    toast.style.display =
-    "block";
-
-    setTimeout(() => {
-
-        toast.style.display =
-        "none";
-
-    }, 1200);
-}
-
-function applyFilters(){
-
-    const keyword =
-    document.getElementById("search")
-    .value
-    .toLowerCase();
-
-    const area =
-    document.getElementById("areaFilter")
-    .value;
-
-    const sort =
-    document.getElementById("sort")
-    .value;
-
-    let list = [...allData];
-
-    list = list.filter(item => {
-
-        const text =
-        Object.values(item)
-        .join(" ")
-        .toLowerCase();
-
-        const searchMatch =
-        text.includes(keyword);
-
-        const areaMatch =
-        !area || item.area === area;
-
-        return searchMatch && areaMatch;
-    });
-
-    if(sort === "power"){
-
-        list.sort((a,b) => {
-
-            const pa =
-            Number(String(a.power).replace(/,/g,""));
-
-            const pb =
-            Number(String(b.power).replace(/,/g,""));
-
-            return pb - pa;
+          // 文字列（日本語対応）
+          const comp = valA.localeCompare(valB, 'ja', { numeric: true });
+          return dir === 'asc' ? comp : -comp;
         });
+      }
+
+      // 件数表示
+      document.getElementById('recordCount').textContent = filteredRows.length + ' / ' + rawRows.length + ' 件';
+
+      // ボディの生成
+      if (filteredRows.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="${rawHeaders.length || 1}" class="py-10 text-center text-slate-400">
+              一致するデータが見つかりませんでした。
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      let bodyHtml = '';
+      filteredRows.forEach((row, rIdx) => {
+        const bgClass = rIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50';
+        bodyHtml += `<tr class="${bgClass} hover:bg-emerald-50/40 transition-colors">`;
+        rawHeaders.forEach((_, cIdx) => {
+          const cellValue = row[cIdx] !== undefined ? row[cIdx] : '';
+          bodyHtml += `<td class="px-4 py-3 whitespace-nowrap text-slate-700">${escapeHtml(cellValue)}</td>`;
+        });
+        bodyHtml += '</tr>';
+      });
+
+      tbody.innerHTML = bodyHtml;
     }
 
-    if(sort === "server"){
-
-        list.sort((a,b) =>
-            Number(a.server) - Number(b.server)
-        );
+    /**
+     * カラムクリック時の並べ替え処理（なし -> 昇順 -> 降順 -> 昇順）
+     */
+    function sortTable(colIndex) {
+      if (currentSort.colIndex === colIndex) {
+        if (currentSort.direction === 'asc') {
+          currentSort.direction = 'desc';
+        } else if (currentSort.direction === 'desc') {
+          currentSort.direction = 'asc';
+        }
+      } else {
+        currentSort.colIndex = colIndex;
+        currentSort.direction = 'asc';
+      }
+      renderTable();
     }
 
-    render(list);
-}
+    /**
+     * 検索入力ハンドラ
+     */
+    function onSearchInput() {
+      renderTable();
+    }
 
-document
-.getElementById("search")
-.addEventListener("input", applyFilters);
+    /**
+     * 自動更新タイマー切り替え
+     */
+    function toggleAutoRefresh() {
+      const isChecked = document.getElementById('autoRefreshCheck').checked;
+      if (isChecked) {
+        // 60秒ごとに自動更新
+        autoRefreshTimer = setInterval(fetchSheetData, 60000);
+      } else {
+        if (autoRefreshTimer) {
+          clearInterval(autoRefreshTimer);
+          autoRefreshTimer = null;
+        }
+      }
+    }
 
-document
-.getElementById("areaFilter")
-.addEventListener("change", applyFilters);
+    /**
+     * ステータスメッセージ表示
+     */
+    function showStatus(text, type) {
+      const msg = document.getElementById('statusMessage');
+      if (!msg) return;
+      msg.textContent = text;
+      msg.className = 'mb-4 p-3 rounded-lg text-sm ' + (
+        type === 'error'
+          ? 'bg-red-50 text-red-700 border-red-200'
+          : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+      );
+      msg.classList.remove('hidden');
+    }
 
-document
-.getElementById("sort")
-.addEventListener("change", applyFilters);
+    function hideStatus() {
+      const msg = document.getElementById('statusMessage');
+      if (msg) msg.classList.add('hidden');
+    }
 
-loadData();
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
 
-setInterval(loadData, 300000);
-
-</script>
-
+    // 画面初期化時に自動読込
+    window.addEventListener('DOMContentLoaded', () => {
+      fetchSheetData();
+    });
+  </script>
 </body>
 </html>
