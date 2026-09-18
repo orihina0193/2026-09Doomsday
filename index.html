@@ -2,111 +2,130 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>スプレッドシート データ一覧</title>
-  <!-- Tailwind CSS CDN（ビルド不要で単一HTMLで完結） -->
+  <!-- Tailwind CSS CDN（ビルド不要・単一HTMLで完結） -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              50: '#f0fdf4',
-              500: '#16a34a',
-              600: '#15803d',
-              700: '#166534',
-            }
-          }
-        }
-      }
-    }
-  </script>
   <style>
-    /* テーブルの横スクロールバーのスタイル */
+    /* 横スクロールバーのスタイリング */
     .table-container::-webkit-scrollbar {
-      height: 8px;
+      height: 6px;
     }
     .table-container::-webkit-scrollbar-track {
       background: #f1f5f9;
     }
     .table-container::-webkit-scrollbar-thumb {
       background: #cbd5e1;
-      border-radius: 4px;
+      border-radius: 3px;
+    }
+    /* タップ時のハイライト改善 */
+    button, a {
+      -webkit-tap-highlight-color: transparent;
     }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen font-sans antialiased">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<body class="bg-slate-50 text-slate-800 min-h-screen font-sans antialiased selection:bg-emerald-100 selection:text-emerald-900">
+  <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
     
-    <!-- ヘッダーエリア -->
-    <header class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 pb-5">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-          <span class="inline-block w-2.5 h-6 bg-emerald-600 rounded-sm"></span>
+    <!-- ヘッダーエリア（スマホにフィット） -->
+    <header class="mb-4 flex items-center justify-between gap-3 border-b border-slate-200 pb-3 sm:pb-4">
+      <div class="min-w-0">
+        <h1 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2 truncate">
+          <span class="inline-block w-2 sm:w-2.5 h-5 sm:h-6 bg-emerald-600 rounded-xs shrink-0"></span>
           スプレッドシート データ一覧
         </h1>
-        <p class="text-sm text-slate-500 mt-1">
-          Googleスプレッドシートの最新データを自動反映・並べ替え
+        <p class="text-xs text-slate-500 mt-0.5 hidden xs:block">
+          座標タップで簡単コピー &bull; リアルタイム連携
         </p>
       </div>
 
-      <!-- コントロールボタン群 -->
-      <div class="flex flex-wrap items-center gap-2">
-        <span id="lastUpdated" class="text-xs text-slate-500 font-mono bg-white px-2.5 py-1.5 rounded border border-slate-200 shadow-sm">
-          未取得
-        </span>
-        <button
-          id="refreshBtn"
-          onclick="fetchSheetData()"
-          class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium rounded-lg border border-slate-200 shadow-sm transition-colors active:scale-95"
-          title="最新のデータを取得"
-        >
-          <svg id="refreshIcon" class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          今すぐ更新
-        </button>
-      </div>
+      <!-- 更新ボタン -->
+      <button
+        id="refreshBtn"
+        onclick="fetchSheetData()"
+        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium rounded-lg border border-slate-200 shadow-2xs transition-colors active:scale-95 shrink-0 min-h-[38px]"
+        title="最新データを再取得"
+      >
+        <svg id="refreshIcon" class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        <span>更新</span>
+      </button>
     </header>
 
-    <!-- 検索バーと件数表示 -->
-    <div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
-      <div class="relative flex-1 max-w-md">
-        <input
-          type="text"
-          id="searchInput"
-          oninput="onSearchInput()"
-          placeholder="表全体を検索（単語入力で絞り込み）..."
-          class="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
-        />
-        <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
+    <!-- 検索バー ＆ 表示切替（スマホ表示最適化） -->
+    <div class="mb-3 sm:mb-4 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2.5">
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+        
+        <!-- 検索入力 -->
+        <div class="relative flex-1">
+          <input
+            type="text"
+            id="searchInput"
+            oninput="onSearchInput()"
+            placeholder="表全体を検索..."
+            class="w-full pl-9 pr-8 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all text-slate-800"
+          />
+          <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <button
+            id="clearSearchBtn"
+            onclick="clearSearch()"
+            class="hidden absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 p-0.5"
+          >
+            ✕
+          </button>
+        </div>
+
+        <!-- コントロール群: 件数 & 表/カード切替 -->
+        <div class="flex items-center justify-between sm:justify-end gap-2 text-xs">
+          <span id="recordCount" class="font-medium text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg">
+            0 件
+          </span>
+
+          <!-- スマホ用: 表 / カード表示切替 -->
+          <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+            <button
+              id="viewModeTableBtn"
+              onclick="setViewMode('table')"
+              class="px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-emerald-700 shadow-2xs transition-colors"
+            >
+              表
+            </button>
+            <button
+              id="viewModeCardsBtn"
+              onclick="setViewMode('cards')"
+              class="px-2.5 py-1 rounded-md text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors"
+            >
+              カード
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div class="flex items-center gap-3 text-xs text-slate-500">
-        <span id="recordCount" class="font-medium text-slate-700">0 件</span>
-        <span class="text-slate-300">|</span>
-        <label class="inline-flex items-center gap-1.5 cursor-pointer">
-          <input type="checkbox" id="autoRefreshCheck" onchange="toggleAutoRefresh()" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
-          <span>1分ごとに自動更新</span>
-        </label>
+      <!-- ソート解除バー（並べ替え中のみ表示） -->
+      <div id="sortStatusContainer" class="hidden flex items-center gap-2 pt-1 border-t border-slate-100 text-xs">
+        <span class="text-slate-500">並べ替え:</span>
+        <div class="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-md border border-emerald-200 font-medium">
+          <span id="sortStatusText"></span>
+          <button onclick="resetSort()" class="hover:text-emerald-950 font-bold p-0.5" title="解除">✕</button>
+        </div>
       </div>
     </div>
 
     <!-- 読込中 / エラー通知メッセージ -->
-    <div id="statusMessage" class="hidden mb-4 p-4 rounded-xl text-sm border"></div>
+    <div id="statusMessage" class="hidden mb-3 p-3 rounded-xl text-xs sm:text-sm border"></div>
 
-    <!-- テーブル表示エリア -->
-    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <!-- コンテンツ表示エリア (表 または カード) -->
+    <!-- 1. 表表示 -->
+    <div id="tableViewContainer" class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
       <div class="table-container overflow-x-auto">
-        <table class="min-w-full divide-y divide-slate-200 text-sm text-left">
-          <thead id="tableHead" class="bg-slate-50 text-xs font-semibold text-slate-600 uppercase tracking-wider select-none">
-            <!-- JavaScriptで動的生成 -->
+        <table class="min-w-full divide-y divide-slate-200 text-xs sm:text-sm text-left">
+          <thead id="tableHead" class="bg-slate-50 text-slate-700 select-none">
+            <!-- JSで動的生成 -->
           </thead>
           <tbody id="tableBody" class="divide-y divide-slate-100 bg-white">
-            <!-- JavaScriptで動的生成 -->
             <tr>
               <td colspan="10" class="py-12 text-center text-slate-400">
                 データを読み込んでいます...
@@ -117,31 +136,83 @@
       </div>
     </div>
 
-    <!-- フッター -->
-    <footer class="mt-8 text-center text-xs text-slate-400">
-      <p>列の見出しをクリックすると「昇順 / 降順」に並べ替えができます。</p>
+    <!-- 2. スマホ用カード表示 -->
+    <div id="cardsViewContainer" class="hidden space-y-2.5">
+      <!-- JSで動的生成 -->
+    </div>
+
+    <!-- フッター説明 -->
+    <footer class="mt-4 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-1.5 px-1">
+      <p>💡 📍ピンが付いた「座標」のボタンをタップすると、その座標だけコピーされます。</p>
+      <p class="hidden sm:inline">列の見出しタップで「昇順 / 降順」に並べ替え</p>
     </footer>
 
   </div>
 
-  <!-- スクリプト: スプレッドシート連携と並べ替え・検索 -->
+  <!-- フローティング コピートースト通知（スマホ画面下部にフィット） -->
+  <div id="copyToast" class="hidden fixed bottom-4 inset-x-3 sm:inset-x-auto sm:right-6 sm:bottom-6 z-50 flex items-center justify-center pointer-events-none">
+    <div class="w-full sm:w-auto flex items-center gap-2 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl text-xs sm:text-sm font-medium border border-slate-700 pointer-events-auto">
+      <span class="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 text-xs font-bold">✓</span>
+      <div class="truncate flex-1">
+        <span class="text-emerald-400 font-semibold">座標をコピー:</span>
+        <span id="copyToastText" class="font-mono bg-slate-800 px-2 py-0.5 rounded border border-slate-700 ml-1"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- スクリプト: スプレッドシート連携・座標判定・タップコピー・検索・並べ替え -->
   <script>
     /**
-     * 【設定】GoogleスプレッドシートのCSV URL
-     * 手順: スプレッドシートで「ファイル」→「共有」→「ウェブに公開」→「カンマ区切り値(.csv)」を選んで公開し、
-     * 生成されたURLを下記の SHEET_CSV_URL に貼り付けてください。
+     * 【設定】Googleスプレッドシートの公開CSV URL
      */
     const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRnJkX_QsjmxeZMsepepY1VR7eB9eSwaPhnA35iN6rwFxyqDebC_k-ABZZB8VxKM4J9mQGty7phZdEu/pub?output=csv";
 
-    // 内部データ保持用
     let rawHeaders = [];
     let rawRows = [];
-    let currentSort = { colIndex: null, direction: null }; // 'asc' | 'desc'
-    let autoRefreshTimer = null;
+    let currentSort = { colIndex: null, direction: null };
+    let currentViewMode = 'table';
+    let toastTimeout = null;
 
-    /**
-     * CSV文字列をパースする関数（引用符、改行、カンマに対応）
-     */
+    // 画面幅がスマホサイズ（640px未満）なら初期表示をカードモードに自動適応
+    if (window.innerWidth < 640) {
+      currentViewMode = 'cards';
+    }
+
+    // 通常座標かどうかの判定（一般の価格、個数、日付、IDなどは除外）
+    function isCoordinateCell(val, headerName = '') {
+      if (!val) return false;
+      const t = String(val).trim();
+
+      // 単なる数値（例: "120", "¥500", "50%" など）は座標ではない
+      if (/^[-+]?[¥$]?[0-9,]+(\.[0-9]+)?%?$/.test(t)) return false;
+
+      // 日付は除外
+      if (/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}/.test(t)) return false;
+
+      // 単なるIDコード（例: PRD-1001）は除外
+      if (/^[A-Za-z0-9]+-[A-Za-z0-9-]+$/.test(t) && !t.toLowerCase().includes('x')) return false;
+
+      const h = (headerName || '').toLowerCase();
+      const isCoordHeader = h.includes('座標') || h.includes('coord') || h.includes('lat') || h.includes('lng') || h.includes('位置') || h.includes('地点');
+
+      // 緯度経度パターン: 35.6586, 139.7454
+      if (/^[-+]?\d{1,3}\.\d{3,}\s*,\s*[-+]?\d{1,3}\.\d{3,}$/.test(t)) return true;
+
+      // 括弧付き座標: (120, 340)
+      if (/^\(\s*[-+]?\d+(\.\d+)?\s*,\s*[-+]?\d+(\.\d+)?(\s*,\s*[-+]?\d+(\.\d+)?)?\s*\)$/.test(t)) return true;
+
+      // ラベル付き座標: X:120 Y:340
+      if (/^[Xx]:?\s*[-+]?\d+(\.\d+)?[\s,]+[Yy]:?\s*[-+]?\d+(\.\d+)?/i.test(t)) return true;
+
+      // カンマ区切りの2〜3個の数値
+      if (/^[-+]?\d+(\.\d+)?\s*,\s*[-+]?\d+(\.\d+)?(\s*,\s*[-+]?\d+(\.\d+)?)?$/.test(t)) return true;
+
+      if (isCoordHeader && /\d+.*[,:\s].*\d+/.test(t)) return true;
+
+      return false;
+    }
+
+    // CSVパース
     function parseCSV(text) {
       const rows = [];
       let currentRow = [];
@@ -179,9 +250,7 @@
       return rows;
     }
 
-    /**
-     * スプレッドシートの最新データを取得（キャッシュ回避のパラメータ付き）
-     */
+    // スプレッドシートからデータ取得
     async function fetchSheetData() {
       const refreshIcon = document.getElementById('refreshIcon');
       if (refreshIcon) refreshIcon.classList.add('animate-spin');
@@ -193,7 +262,6 @@
           throw new Error('スプレッドシートのURLが未設定です。HTML内の SHEET_CSV_URL を設定してください。');
         }
 
-        // キャッシュを防ぎ最新データを確実に取得するためにタイムスタンプを付与
         const cacheBustUrl = SHEET_CSV_URL + (SHEET_CSV_URL.includes('?') ? '&' : '?') + '_t=' + Date.now();
         const response = await fetch(cacheBustUrl);
 
@@ -211,13 +279,8 @@
         rawHeaders = parsedData[0];
         rawRows = parsedData.slice(1);
 
-        // 最終更新時刻の更新
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        document.getElementById('lastUpdated').textContent = '最終更新: ' + timeStr;
-
         hideStatus();
-        renderTable();
+        render();
 
       } catch (err) {
         console.error(err);
@@ -226,7 +289,7 @@
           <tr>
             <td colspan="10" class="py-8 text-center text-red-500 font-medium">
               データの取得に失敗しました。<br>
-              <span class="text-xs text-slate-500">スプレッドシートで「ファイル」→「共有」→「ウェブに公開」を行っているかご確認ください。</span>
+              <span class="text-xs text-slate-500">スプレッドシートの「ウェブに公開」設定をご確認ください。</span>
             </td>
           </tr>
         `;
@@ -235,54 +298,81 @@
       }
     }
 
-    /**
-     * テーブルの描画（ヘッダー・並べ替え・検索フィルター適用）
-     */
-    function renderTable() {
-      const thead = document.getElementById('tableHead');
-      const tbody = document.getElementById('tableBody');
-      const searchQuery = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+    // 座標タップコピー実行
+    async function copyCoordinate(text, e) {
+      if (e) e.stopPropagation();
+      const clean = (text || '').trim();
+      if (!clean) return;
 
-      // ヘッダーの生成
-      let headHtml = '<tr>';
-      rawHeaders.forEach((header, index) => {
-        const isSorted = currentSort.colIndex === index;
-        const arrow = isSorted
-          ? (currentSort.direction === 'asc' ? '▲' : '▼')
-          : '<span class="text-slate-300 group-hover:text-slate-500">⇅</span>';
+      try {
+        await navigator.clipboard.writeText(clean);
+        showToast(clean);
+      } catch (err) {
+        // フォールバック（古いブラウザやパーミッション対策）
+        const textArea = document.createElement('textarea');
+        textArea.value = clean;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showToast(clean);
+      }
+    }
 
-        headHtml += `
-          <th
-            onclick="sortTable(${index})"
-            class="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors group whitespace-nowrap ${isSorted ? 'bg-emerald-50/70 text-emerald-800' : ''}"
-            title="クリックで並べ替え"
-          >
-            <div class="flex items-center gap-1.5">
-              <span>${escapeHtml(header)}</span>
-              <span class="text-xs font-mono">${arrow}</span>
-            </div>
-          </th>
-        `;
+    // コピートースト表示
+    function showToast(text) {
+      const toast = document.getElementById('copyToast');
+      const toastText = document.getElementById('copyToastText');
+      if (!toast || !toastText) return;
+
+      toastText.textContent = text;
+      toast.classList.remove('hidden');
+
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 2400);
+    }
+
+    // 表示切り替え（表 / カード）
+    function setViewMode(mode) {
+      currentViewMode = mode;
+      const tableBtn = document.getElementById('viewModeTableBtn');
+      const cardsBtn = document.getElementById('viewModeCardsBtn');
+      const tableView = document.getElementById('tableViewContainer');
+      const cardsView = document.getElementById('cardsViewContainer');
+
+      if (mode === 'cards') {
+        tableBtn.className = 'px-2.5 py-1 rounded-md text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors';
+        cardsBtn.className = 'px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-emerald-700 shadow-2xs transition-colors';
+        tableView.classList.add('hidden');
+        cardsView.classList.remove('hidden');
+      } else {
+        tableBtn.className = 'px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-emerald-700 shadow-2xs transition-colors';
+        cardsBtn.className = 'px-2.5 py-1 rounded-md text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors';
+        tableView.classList.remove('hidden');
+        cardsView.classList.add('hidden');
+      }
+      render();
+    }
+
+    // 検索・並べ替え済みの行を取得
+    function getProcessedRows() {
+      const query = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+
+      let filtered = rawRows.filter(row => {
+        if (!query) return true;
+        return row.some(cell => String(cell).toLowerCase().includes(query));
       });
-      headHtml += '</tr>';
-      thead.innerHTML = headHtml;
 
-      // 行のフィルタリング（検索）
-      let filteredRows = rawRows.filter(row => {
-        if (!searchQuery) return true;
-        return row.some(cell => String(cell).toLowerCase().includes(searchQuery));
-      });
-
-      // 並べ替え
       if (currentSort.colIndex !== null && currentSort.direction !== null) {
         const col = currentSort.colIndex;
         const dir = currentSort.direction;
 
-        filteredRows.sort((a, b) => {
+        filtered.sort((a, b) => {
           const valA = (a[col] || '').trim();
           const valB = (b[col] || '').trim();
 
-          // 数値（円マークやカンマ等に対応）
           const numA = parseFloat(valA.replace(/[^0-9.-]+/g, ''));
           const numB = parseFloat(valB.replace(/[^0-9.-]+/g, ''));
           const isNum = !isNaN(numA) && !isNaN(numB) && /^[-+]?[¥$]?[0-9,]+(\.[0-9]+)?%?$/.test(valA);
@@ -291,27 +381,79 @@
             return dir === 'asc' ? numA - numB : numB - numA;
           }
 
-          // 日付
           const dateA = Date.parse(valA);
           const dateB = Date.parse(valB);
           if (!isNaN(dateA) && !isNaN(dateB) && /^[0-9]{4}[-/]/.test(valA)) {
             return dir === 'asc' ? dateA - dateB : dateB - dateA;
           }
 
-          // 文字列（日本語対応）
           const comp = valA.localeCompare(valB, 'ja', { numeric: true });
           return dir === 'asc' ? comp : -comp;
         });
       }
 
-      // 件数表示
-      document.getElementById('recordCount').textContent = filteredRows.length + ' / ' + rawRows.length + ' 件';
+      return filtered;
+    }
 
-      // ボディの生成
+    // 全体描画
+    function render() {
+      const filtered = getProcessedRows();
+      document.getElementById('recordCount').textContent = filtered.length + ' / ' + rawRows.length + ' 件';
+
+      // 検索クリアボタンの制御
+      const hasQuery = Boolean(document.getElementById('searchInput').value.trim());
+      document.getElementById('clearSearchBtn').classList.toggle('hidden', !hasQuery);
+
+      // ソート表示バーの制御
+      const sortContainer = document.getElementById('sortStatusContainer');
+      if (currentSort.colIndex !== null && currentSort.direction !== null) {
+        sortContainer.classList.remove('hidden');
+        const colName = rawHeaders[currentSort.colIndex] || ('列 ' + (currentSort.colIndex + 1));
+        document.getElementById('sortStatusText').textContent = colName + ' (' + (currentSort.direction === 'asc' ? '昇順 ▲' : '降順 ▼') + ')';
+      } else {
+        sortContainer.classList.add('hidden');
+      }
+
+      if (currentViewMode === 'cards') {
+        renderCards(filtered);
+      } else {
+        renderTable(filtered);
+      }
+    }
+
+    // テーブル描画
+    function renderTable(filteredRows) {
+      const thead = document.getElementById('tableHead');
+      const tbody = document.getElementById('tableBody');
+
+      let headHtml = '<tr>';
+      headHtml += '<th class="w-10 sm:w-12 px-2.5 sm:px-3 py-3 text-center text-slate-400 font-mono text-xs border-r border-slate-200">#</th>';
+      rawHeaders.forEach((header, index) => {
+        const isSorted = currentSort.colIndex === index;
+        const arrow = isSorted
+          ? (currentSort.direction === 'asc' ? '▲' : '▼')
+          : '<span class="text-slate-300">⇅</span>';
+
+        headHtml += `
+          <th
+            onclick="sortTable(${index})"
+            class="px-3 sm:px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors whitespace-nowrap ${isSorted ? 'bg-emerald-50/80 text-emerald-900 border-b-2 border-emerald-600' : ''}"
+            title="クリックで並べ替え"
+          >
+            <div class="flex items-center justify-between gap-1.5">
+              <span>${escapeHtml(header)}</span>
+              <span class="text-xs font-mono shrink-0">${arrow}</span>
+            </div>
+          </th>
+        `;
+      });
+      headHtml += '</tr>';
+      thead.innerHTML = headHtml;
+
       if (filteredRows.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="${rawHeaders.length || 1}" class="py-10 text-center text-slate-400">
+            <td colspan="${(rawHeaders.length || 1) + 1}" class="py-10 text-center text-slate-400">
               一致するデータが見つかりませんでした。
             </td>
           </tr>
@@ -321,68 +463,159 @@
 
       let bodyHtml = '';
       filteredRows.forEach((row, rIdx) => {
-        const bgClass = rIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50';
-        bodyHtml += `<tr class="${bgClass} hover:bg-emerald-50/40 transition-colors">`;
-        rawHeaders.forEach((_, cIdx) => {
-          const cellValue = row[cIdx] !== undefined ? row[cIdx] : '';
-          bodyHtml += `<td class="px-4 py-3 whitespace-nowrap text-slate-700">${escapeHtml(cellValue)}</td>`;
+        const bgClass = rIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60';
+        bodyHtml += `<tr class="${bgClass} hover:bg-emerald-50/30 transition-colors">`;
+        bodyHtml += `<td class="px-2.5 sm:px-3 py-2.5 sm:py-3 text-center text-slate-400 font-mono text-xs border-r border-slate-100 whitespace-nowrap">${rIdx + 1}</td>`;
+
+        rawHeaders.forEach((header, cIdx) => {
+          const val = row[cIdx] !== undefined ? row[cIdx] : '';
+          const isCoord = isCoordinateCell(val, header);
+
+          bodyHtml += '<td class="px-3 sm:px-4 py-2.5 sm:py-3 whitespace-nowrap text-slate-800">';
+
+          if (isCoord) {
+            // 座標のみボタン化＆タップでコピー可能に
+            bodyHtml += `
+              <button
+                type="button"
+                onclick="copyCoordinate('${escapeJs(val)}', event)"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-mono text-xs bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100 active:scale-95 transition-all cursor-pointer min-h-[34px]"
+                title="タップして座標をコピー"
+              >
+                <span class="text-emerald-600">📍</span>
+                <span class="font-semibold">${escapeHtml(val)}</span>
+                <span class="text-[10px] text-emerald-700 bg-white/80 px-1 py-0.5 rounded border border-emerald-200">コピー</span>
+              </button>
+            `;
+          } else {
+            // 通常の数値・文字は誤タップコピーされないテキスト表示
+            bodyHtml += `<span class="select-text">${escapeHtml(val)}</span>`;
+          }
+
+          bodyHtml += '</td>';
         });
+
         bodyHtml += '</tr>';
       });
 
       tbody.innerHTML = bodyHtml;
     }
 
-    /**
-     * カラムクリック時の並べ替え処理（なし -> 昇順 -> 降順 -> 昇順）
-     */
+    // スマホ用カード描画
+    function renderCards(filteredRows) {
+      const container = document.getElementById('cardsViewContainer');
+
+      if (filteredRows.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-400">
+            一致するデータが見つかりませんでした。
+          </div>
+        `;
+        return;
+      }
+
+      let cardsHtml = '';
+      filteredRows.forEach((row, rIdx) => {
+        // この行内の座標列を抽出
+        const coordIndices = [];
+        rawHeaders.forEach((h, cIdx) => {
+          if (isCoordinateCell(row[cIdx] || '', h)) coordIndices.push(cIdx);
+        });
+
+        cardsHtml += `
+          <div class="bg-white rounded-xl border border-slate-200 p-3.5 shadow-2xs space-y-2.5">
+            <!-- タイトル行 -->
+            <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-500 font-mono text-[10px] flex items-center justify-center shrink-0">
+                  ${rIdx + 1}
+                </span>
+                <span class="font-bold text-slate-900 text-sm truncate">
+                  ${escapeHtml(row[0] || '無題')}
+                </span>
+              </div>
+              ${row[1] ? `<span class="text-xs text-slate-400 shrink-0">${escapeHtml(row[1])}</span>` : ''}
+            </div>
+
+            <!-- 座標タップコピーボタン（大きく押しやすいボタン） -->
+            ${coordIndices.length > 0 ? `
+              <div class="space-y-1.5">
+                ${coordIndices.map(cIdx => `
+                  <button
+                    type="button"
+                    onclick="copyCoordinate('${escapeJs(row[cIdx] || '')}', event)"
+                    class="w-full flex items-center justify-between p-2.5 rounded-xl border font-mono text-xs bg-emerald-50 text-emerald-900 border-emerald-300 active:scale-[0.98] transition-all min-h-[44px]"
+                  >
+                    <div class="flex items-center gap-1.5 min-w-0">
+                      <span>📍</span>
+                      <span class="font-semibold truncate">${escapeHtml(rawHeaders[cIdx])}:</span>
+                      <span class="font-bold tracking-tight">${escapeHtml(row[cIdx] || '')}</span>
+                    </div>
+                    <span class="text-[11px] font-sans font-semibold bg-white text-emerald-800 border border-emerald-200 px-2 py-1 rounded-md shrink-0">
+                      タップでコピー
+                    </span>
+                  </button>
+                `).join('')}
+              </div>
+            ` : ''}
+
+            <!-- その他の項目 -->
+            <div class="grid grid-cols-2 gap-1.5 text-xs pt-0.5">
+              ${rawHeaders.map((header, cIdx) => {
+                if (cIdx === 0 || coordIndices.includes(cIdx)) return '';
+                const val = row[cIdx] || '';
+                if (!val) return '';
+                return `
+                  <div class="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                    <div class="text-[10px] text-slate-400 font-medium truncate">${escapeHtml(header)}</div>
+                    <div class="text-slate-800 font-medium mt-0.5 truncate">${escapeHtml(val)}</div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = cardsHtml;
+    }
+
     function sortTable(colIndex) {
       if (currentSort.colIndex === colIndex) {
         if (currentSort.direction === 'asc') {
           currentSort.direction = 'desc';
         } else if (currentSort.direction === 'desc') {
-          currentSort.direction = 'asc';
+          currentSort.colIndex = null;
+          currentSort.direction = null;
         }
       } else {
         currentSort.colIndex = colIndex;
         currentSort.direction = 'asc';
       }
-      renderTable();
+      render();
     }
 
-    /**
-     * 検索入力ハンドラ
-     */
+    function resetSort() {
+      currentSort = { colIndex: null, direction: null };
+      render();
+    }
+
     function onSearchInput() {
-      renderTable();
+      render();
     }
 
-    /**
-     * 自動更新タイマー切り替え
-     */
-    function toggleAutoRefresh() {
-      const isChecked = document.getElementById('autoRefreshCheck').checked;
-      if (isChecked) {
-        // 60秒ごとに自動更新
-        autoRefreshTimer = setInterval(fetchSheetData, 60000);
-      } else {
-        if (autoRefreshTimer) {
-          clearInterval(autoRefreshTimer);
-          autoRefreshTimer = null;
-        }
-      }
+    function clearSearch() {
+      document.getElementById('searchInput').value = '';
+      render();
     }
 
-    /**
-     * ステータスメッセージ表示
-     */
     function showStatus(text, type) {
       const msg = document.getElementById('statusMessage');
       if (!msg) return;
       msg.textContent = text;
-      msg.className = 'mb-4 p-3 rounded-lg text-sm ' + (
+      msg.className = 'mb-3 p-3 rounded-xl text-xs sm:text-sm ' + (
         type === 'error'
-          ? 'bg-red-50 text-red-700 border-red-200'
+          ? 'bg-rose-50 text-rose-700 border-rose-200'
           : 'bg-emerald-50 text-emerald-800 border-emerald-200'
       );
       msg.classList.remove('hidden');
@@ -394,7 +627,7 @@
     }
 
     function escapeHtml(str) {
-      return String(str)
+      return String(str || '')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
@@ -402,8 +635,18 @@
         .replace(/'/g, '&#039;');
     }
 
-    // 画面初期化時に自動読込
+    function escapeJs(str) {
+      return String(str || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '&quot;')
+        .replace(/\n/g, ' ');
+    }
+
+    // 初回実行
     window.addEventListener('DOMContentLoaded', () => {
+      // 初期ボタンスタイル
+      setViewMode(currentViewMode);
       fetchSheetData();
     });
   </script>
