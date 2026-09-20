@@ -9,14 +9,19 @@
   <style>
     /* 横スクロールバーのスタイリング */
     .table-container::-webkit-scrollbar {
-      height: 6px;
+      height: 7px;
     }
     .table-container::-webkit-scrollbar-track {
       background: #f1f5f9;
+      border-radius: 4px;
     }
     .table-container::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 3px;
+      background: #10b981;
+      border-radius: 4px;
+      border: 1px solid #f1f5f9;
+    }
+    .table-container::-webkit-scrollbar-thumb:hover {
+      background: #059669;
     }
     /* タップ時のハイライト改善 */
     button, a {
@@ -189,8 +194,24 @@
 
     <!-- コンテンツ表示エリア (表 または カード) -->
     <!-- 1. 表表示 -->
-    <div id="tableViewContainer" class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-      <div class="table-container overflow-x-auto">
+    <div id="tableViewContainer" class="relative bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+      <!-- 横スクロール案内バー（右に続きがある時に表示） -->
+      <div id="scrollHintBar" class="hidden flex items-center justify-between px-3 py-1.5 bg-emerald-50 text-emerald-900 border-b border-emerald-200/80 text-xs font-medium select-none">
+        <div class="flex items-center gap-1.5 min-w-0">
+          <span class="text-sm text-emerald-600 font-bold shrink-0 animate-pulse">👉</span>
+          <span class="truncate">表を横にスワイプで続き（座標など）を表示</span>
+        </div>
+        <button
+          type="button"
+          onclick="scrollTableRight()"
+          class="inline-flex items-center gap-1 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-0.5 rounded-full shadow-xs active:scale-95 transition-all shrink-0 cursor-pointer ml-1"
+        >
+          <span>右へ</span>
+          <span>▶</span>
+        </button>
+      </div>
+
+      <div id="tableScrollContainer" class="table-container overflow-x-auto relative" onscroll="onTableScroll(this)">
         <table class="min-w-full divide-y divide-slate-200 text-xs sm:text-sm text-left">
           <thead id="tableHead" class="bg-slate-50 text-slate-700 select-none">
             <!-- JSで動的生成 -->
@@ -204,6 +225,43 @@
           </tbody>
         </table>
       </div>
+
+      <!-- 右端スクロールインジケーター（右に続きがある時にグラデーション＋続き矢印を表示） -->
+      <div
+        id="tableRightIndicator"
+        onclick="scrollTableRight()"
+        class="hidden absolute right-0 top-0 bottom-0 w-12 sm:w-16 bg-gradient-to-l from-slate-900/25 via-slate-900/10 to-transparent pointer-events-auto cursor-pointer flex items-center justify-end pr-1.5 sm:pr-2 z-10 transition-opacity"
+        title="右にスクロールして続きを表示"
+      >
+        <div class="flex flex-col items-center gap-1">
+          <button
+            type="button"
+            class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-lg transition-transform active:scale-90 animate-pulse cursor-pointer"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+          <span class="text-[9px] font-bold bg-slate-900/85 text-white px-1.5 py-0.5 rounded shadow-2xs">続き▶</span>
+        </div>
+      </div>
+
+      <!-- 左端スクロールインジケーター（左に戻れる時に表示） -->
+      <div
+        id="tableLeftIndicator"
+        onclick="scrollTableLeft()"
+        class="hidden absolute left-0 top-0 bottom-0 w-10 sm:w-14 bg-gradient-to-r from-slate-900/25 via-slate-900/10 to-transparent pointer-events-auto cursor-pointer flex items-center justify-start pl-1.5 sm:pl-2 z-10 transition-opacity"
+        title="左に戻る"
+      >
+        <button
+          type="button"
+          class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-800/90 hover:bg-slate-900 text-white flex items-center justify-center shadow-lg transition-transform active:scale-90 cursor-pointer"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+      </div>
     </div>
 
     <!-- 2. スマホ用カード表示 -->
@@ -213,7 +271,7 @@
 
     <!-- フッター説明 -->
     <footer class="mt-4 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-1.5 px-1">
-      <p>💡 📍ピンが付いた「名前」のボタンをタップすると、【名前＋座標】がクリップボードにコピーされます。</p>
+      <p>💡 📍ピン付きボタンをタップすると【名前＋座標】をコピー。画面外の列は左右スワイプまたは「続き▶」で表示できます。</p>
       <p class="hidden sm:inline">列の見出しタップで「昇順 / 降順」に並べ替え</p>
     </footer>
 
@@ -314,13 +372,13 @@
       const colIdx = explicitCol >= 0 ? explicitCol : getEffectiveAllianceColIndex();
       if (colIdx >= 0 && colIdx < row.length) {
         const val = (row[colIdx] || '').trim();
-        if (val && !isCoordinateCell(val, headers[colIdx] || '') && !/^[SsKk]?:?\s*\d+$/.test(val)) {
+        if (val && !isCoordinateCell(val, headers[colIdx] || '') && !/^[SsKk]?:?s*d+$/.test(val)) {
           return val;
         }
       }
       if (colIdx !== 1 && row.length > 1) {
         const val = (row[1] || '').trim();
-        if (val && !isCoordinateCell(val, headers[1] || '') && !/^[SsKk]?:?\s*\d+$/.test(val)) {
+        if (val && !isCoordinateCell(val, headers[1] || '') && !/^[SsKk]?:?s*d+$/.test(val)) {
           return val;
         }
       }
@@ -331,7 +389,7 @@
     function stripServerFromCoord(coord) {
       if (!coord) return '';
       return coord
-        .replace(/^([SsKk#]|(?:鯖|サーバー):?)\s*\d+[\s,]+/i, '')
+        .replace(/^([SsKk#]|(?:鯖|サーバー):?)s*d+[s,]+/i, '')
         .trim();
     }
 
@@ -373,7 +431,7 @@
           if (sampleVals.length === 0) continue;
 
           // サーバー番号っぽい値 (例: 511, S:511, S511)
-          const mostlyServers = sampleVals.every(v => /^[SsKk]?:?\s*\d+$/.test(v));
+          const mostlyServers = sampleVals.every(v => /^[SsKk]?:?s*d+$/.test(v));
           if (mostlyServers) continue;
 
           // 座標っぽい値
@@ -381,7 +439,7 @@
           if (mostlyCoords) continue;
 
           // 単なる1〜4桁の数値（IDや連番）
-          const mostlySmallNumbers = sampleVals.every(v => /^\d{1,4}$/.test(v));
+          const mostlySmallNumbers = sampleVals.every(v => /^d{1,4}$/.test(v));
           if (mostlySmallNumbers) continue;
         }
 
@@ -450,7 +508,7 @@
       if (!trimmed) return null;
 
       // 日付や単純IDは除外
-      if (/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}/.test(trimmed)) return null;
+      if (/^d{4}[-/.]d{1,2}[-/.]d{1,2}/.test(trimmed)) return null;
       if (/^[A-Za-z0-9]+-[A-Za-z0-9-]+$/.test(trimmed) && !trimmed.toLowerCase().includes('x')) return null;
 
       if (isCoordinateCell(trimmed)) {
@@ -458,7 +516,7 @@
       }
 
       // ゲーム座標パターン: S:511 X:240 Y:538 または X:240 Y:538
-      const gameMatch = trimmed.match(/((?:[SsKk]:?\s*\d+[\s,]+)?[Xx]:?\s*[-+]?\d+(?:\.\d+)?[\s,]+[Yy]:?\s*[-+]?\d+(?:\.\d+)?)/i);
+      const gameMatch = trimmed.match(/((?:[SsKk]:?s*d+[s,]+)?[Xx]:?s*[-+]?d+(?:.d+)?[s,]+[Yy]:?s*[-+]?d+(?:.d+)?)/i);
       if (gameMatch) {
         const coord = gameMatch[1].trim();
         const name = trimmed.replace(gameMatch[0], '').trim();
@@ -466,7 +524,7 @@
       }
 
       // 緯度経度パターン: 35.6586, 139.7454
-      const latLngMatch = trimmed.match(/([-+]?\d{1,3}\.\d{3,}\s*,\s*[-+]?\d{1,3}\.\d{3,})/);
+      const latLngMatch = trimmed.match(/([-+]?d{1,3}.d{3,}s*,s*[-+]?d{1,3}.d{3,})/);
       if (latLngMatch) {
         const coord = latLngMatch[1].trim();
         const name = trimmed.replace(latLngMatch[0], '').trim();
@@ -693,6 +751,7 @@
         await navigator.clipboard.writeText(clean);
         showToast(clean, label);
       } catch (err) {
+        // フォールバック（古いブラウザやパーミッション対策）
         const textArea = document.createElement('textarea');
         textArea.value = clean;
         document.body.appendChild(textArea);
@@ -858,11 +917,15 @@
         cardsBtn.className = 'px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-emerald-700 shadow-2xs transition-colors';
         tableView.classList.add('hidden');
         cardsView.classList.remove('hidden');
+        if (document.getElementById('scrollHintBar')) document.getElementById('scrollHintBar').classList.add('hidden');
+        if (document.getElementById('tableRightIndicator')) document.getElementById('tableRightIndicator').classList.add('hidden');
+        if (document.getElementById('tableLeftIndicator')) document.getElementById('tableLeftIndicator').classList.add('hidden');
       } else {
         tableBtn.className = 'px-2.5 py-1 rounded-md text-xs font-semibold bg-white text-emerald-700 shadow-2xs transition-colors';
         cardsBtn.className = 'px-2.5 py-1 rounded-md text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors';
         tableView.classList.remove('hidden');
         cardsView.classList.add('hidden');
+        setTimeout(updateScrollIndicators, 60);
       }
       render();
     }
@@ -1105,6 +1168,7 @@
       });
 
       tbody.innerHTML = bodyHtml;
+      setTimeout(updateScrollIndicators, 60);
     }
 
     // スマホ用カード描画
@@ -1209,6 +1273,7 @@
           : (row[effectiveNameCol] || row[0] || '地点');
         const copyTarget = rowCoordInfo ? rowCoordInfo.fullTextToCopy : primaryName;
 
+        // 同盟またはサーバー番号などのバッジ表示
         let secondaryBadge = '';
         if (rowCoordInfo && rowCoordInfo.allianceName) {
           secondaryBadge = `<span class="text-xs text-blue-800 shrink-0 font-semibold bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">${escapeHtml(rowCoordInfo.allianceName)}</span>`;
@@ -1351,10 +1416,68 @@
         .replace(/\n/g, ' ');
     }
 
+    // テーブルの横スクロール判定とインジケーター更新
+    function updateScrollIndicators() {
+      if (currentViewMode !== 'table') return;
+      const container = document.getElementById('tableScrollContainer');
+      const rightInd = document.getElementById('tableRightIndicator');
+      const leftInd = document.getElementById('tableLeftIndicator');
+      const hintBar = document.getElementById('scrollHintBar');
+      if (!container) return;
+
+      const hasOverflow = container.scrollWidth > container.clientWidth + 8;
+      const isScrolledToStart = container.scrollLeft <= 8;
+      const isScrolledToEnd = container.scrollLeft + container.clientWidth >= container.scrollWidth - 8;
+
+      if (hintBar) {
+        if (hasOverflow && isScrolledToStart) {
+          hintBar.classList.remove('hidden');
+        } else {
+          hintBar.classList.add('hidden');
+        }
+      }
+
+      if (rightInd) {
+        if (hasOverflow && !isScrolledToEnd) {
+          rightInd.classList.remove('hidden');
+        } else {
+          rightInd.classList.add('hidden');
+        }
+      }
+
+      if (leftInd) {
+        if (hasOverflow && !isScrolledToStart) {
+          leftInd.classList.remove('hidden');
+        } else {
+          leftInd.classList.add('hidden');
+        }
+      }
+    }
+
+    function onTableScroll(container) {
+      updateScrollIndicators();
+    }
+
+    function scrollTableRight() {
+      const container = document.getElementById('tableScrollContainer');
+      if (container) {
+        container.scrollBy({ left: 240, behavior: 'smooth' });
+      }
+    }
+
+    function scrollTableLeft() {
+      const container = document.getElementById('tableScrollContainer');
+      if (container) {
+        container.scrollBy({ left: -240, behavior: 'smooth' });
+      }
+    }
+
     // 初回実行
     window.addEventListener('DOMContentLoaded', () => {
+      // 初期ボタンスタイル
       setViewMode(currentViewMode);
       fetchSheetData();
+      window.addEventListener('resize', updateScrollIndicators);
     });
   </script>
 </body>
